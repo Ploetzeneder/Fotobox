@@ -15,6 +15,7 @@ import com.fotobox.app.data.models.StripLayout
 import com.fotobox.app.data.repository.FotoboxRepository
 import com.fotobox.app.utils.BitmapUtils
 import com.fotobox.app.utils.FilterProcessor
+import com.fotobox.app.utils.ShutterTrigger
 import com.fotobox.app.utils.StripComposer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -65,7 +66,8 @@ data class CameraUiState(
 @HiltViewModel
 class CameraViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val repository: FotoboxRepository
+    private val repository: FotoboxRepository,
+    private val shutterTrigger: ShutterTrigger
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CameraUiState())
@@ -81,6 +83,11 @@ class CameraViewModel @Inject constructor(
                 selectedFilter = settings.defaultFilter,
                 selectedLayout = settings.stripLayout
             )
+        }
+        viewModelScope.launch {
+            shutterTrigger.events.collect {
+                if (_uiState.value.state is CameraState.Idle) startSession()
+            }
         }
     }
 
