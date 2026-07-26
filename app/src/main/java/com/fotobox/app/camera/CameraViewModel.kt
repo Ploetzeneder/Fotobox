@@ -19,6 +19,7 @@ import com.fotobox.app.utils.ShutterTrigger
 import com.fotobox.app.utils.StripComposer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 sealed class CameraState {
@@ -139,8 +141,10 @@ class CameraViewModel @Inject constructor(
                 _uiState.update { it.copy(state = CameraState.Capturing) }
                 capturePhoto()
 
-                _uiState.update { it.copy(state = CameraState.FlashEffect) }
-                delay(220L)
+                if (settings.useFlash) {
+                    _uiState.update { it.copy(state = CameraState.FlashEffect) }
+                    delay(220L)
+                }
 
                 if (index < photoCount - 1) {
                     _uiState.update {
@@ -161,19 +165,23 @@ class CameraViewModel @Inject constructor(
         val capture = imageCapture ?: return
         val tempFile = createTempFile(context)
 
-        val bitmap = suspendCancellableCoroutine<Bitmap?> { cont ->
+        val saved = suspendCancellableCoroutine<Boolean> { cont ->
             capture.takePicture(
                 ImageCapture.OutputFileOptions.Builder(tempFile).build(),
                 context.mainExecutor,
                 object : ImageCapture.OnImageSavedCallback {
                     override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                        cont.resume(BitmapFactory.decodeFile(tempFile.absolutePath)) {}
+                        cont.resume(true) {}
                     }
                     override fun onError(e: ImageCaptureException) {
-                        cont.resume(null) {}
+                        cont.resume(false) {}
                     }
                 }
             )
+        }
+        if (!saved) return
+        val bitmap = withContext(Dispatchers.IO) {
+            BitmapFactory.decodeFile(tempFile.absolutePath)
         }
         bitmap?.let { capturedBitmaps.add(it) }
     }
@@ -189,29 +197,38 @@ class CameraViewModel @Inject constructor(
         val settings = repository.loadSettings()
         val sessionId = repository.createSession(_uiState.value.selectedLayout)
         val filter = _uiState.value.selectedFilter
+        val layout = _uiState.value.selectedLayout
 
-        val filteredBitmaps = capturedBitmaps.mapIndexed { i, bmp ->
-            _uiState.update {
-                it.copy(state = CameraState.Processing((i + 1f) / capturedBitmaps.size * 0.7f))
+        val filteredBitmaps = withContext(Dispatchers.Default) {
+            capturedBitmaps.mapIndexed { i, bmp ->
+                _uiState.update {
+                    it.copy(state = CameraState.Processing((i + 1f) / capturedBitmaps.size * 0.6f))
+                }
+                FilterProcessor.applyFilter(bmp, filter)
             }
-            FilterProcessor.applyFilter(bmp, filter)
         }
 
-        val photos = filteredBitmaps.mapIndexed { i, bmp ->
-            val path = BitmapUtils.saveBitmap(context, bmp, "photo_$sessionId")
-            Photo(sessionId = sessionId, filePath = path, filter = filter, orderIndex = i)
+        val photos = withContext(Dispatchers.IO) {
+            filteredBitmaps.mapIndexed { i, bmp ->
+                val path = BitmapUtils.saveBitmap(context, bmp, "photo_$sessionId")
+                Photo(sessionId = sessionId, filePath = path, filter = filter, orderIndex = i)
+            }
         }
         repository.savePhotos(photos)
 
-        _uiState.update { it.copy(state = CameraState.Processing(0.8f)) }
+        _uiState.update { it.copy(state = CameraState.Processing(0.75f)) }
 
-        val strip = StripComposer.compose(
-            filteredBitmaps,
-            _uiState.value.selectedLayout,
-            eventName = settings.eventName,
-            backgroundColor = settings.stripBackground.colorArgb
-        )
-        val stripPath = BitmapUtils.saveBitmap(context, strip, "strip_$sessionId")
+        val strip = withContext(Dispatchers.Default) {
+            StripComposer.compose(
+                filteredBitmaps,
+                layout,
+                eventName = settings.eventName,
+                backgroundColor = settings.stripBackground.colorArgb
+            )
+        }
+        val stripPath = withContext(Dispatchers.IO) {
+            BitmapUtils.saveBitmap(context, strip, "strip_$sessionId")
+        }
         repository.updateStripPath(sessionId, stripPath)
 
         _uiState.update { it.copy(state = CameraState.Done(sessionId)) }
