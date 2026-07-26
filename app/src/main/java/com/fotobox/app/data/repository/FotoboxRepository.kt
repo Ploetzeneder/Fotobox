@@ -11,6 +11,7 @@ import com.fotobox.app.data.models.FotoboxSettings
 import com.fotobox.app.data.models.Photo
 import com.fotobox.app.data.models.PhotoFilter
 import com.fotobox.app.data.models.PhotoSession
+import com.fotobox.app.data.models.StripBackground
 import com.fotobox.app.data.models.StripLayout
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -77,6 +78,9 @@ class FotoboxRepository @Inject constructor(
         defaultFilter = PhotoFilter.valueOf(
             prefs.getString("default_filter", PhotoFilter.NONE.name)!!
         ),
+        stripBackground = StripBackground.valueOf(
+            prefs.getString("strip_background", StripBackground.WHITE.name)!!
+        ),
         useFlash = prefs.getBoolean("use_flash", true),
         kioskMode = prefs.getBoolean("kiosk_mode", false),
         settingsPin = prefs.getString("settings_pin", "") ?: "",
@@ -99,6 +103,7 @@ class FotoboxRepository @Inject constructor(
             putString("countdown", settings.countdownDuration.name)
             putString("strip_layout", settings.stripLayout.name)
             putString("default_filter", settings.defaultFilter.name)
+            putString("strip_background", settings.stripBackground.name)
             putBoolean("use_flash", settings.useFlash)
             putBoolean("kiosk_mode", settings.kioskMode)
             putString("settings_pin", settings.settingsPin)

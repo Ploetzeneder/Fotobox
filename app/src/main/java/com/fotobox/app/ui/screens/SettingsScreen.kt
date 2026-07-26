@@ -50,8 +50,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.aspectRatio
 import com.fotobox.app.data.models.CountdownDuration
 import com.fotobox.app.data.models.PhotoFilter
+import com.fotobox.app.data.models.StripBackground
 import com.fotobox.app.data.models.StripLayout
 import com.fotobox.app.ui.viewmodels.SettingsViewModel
 
@@ -181,6 +184,46 @@ fun SettingsScreen(
                     selectedIndex = PhotoFilter.entries.indexOf(settings.defaultFilter),
                     onSelect = { viewModel.updateFilter(PhotoFilter.entries[it]) }
                 )
+            }
+
+            // Streifen-Hintergrund
+            SettingsSection("Streifen-Hintergrund") {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    StripBackground.entries.forEach { bg ->
+                        val isSelected = bg == settings.stripBackground
+                        val r = (bg.colorArgb shr 16) and 0xFF
+                        val g = (bg.colorArgb shr 8) and 0xFF
+                        val b = bg.colorArgb and 0xFF
+                        val isLight = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0 > 0.5
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(bg.colorArgb))
+                                .then(
+                                    if (isSelected) Modifier.border(
+                                        3.dp,
+                                        MaterialTheme.colorScheme.primary,
+                                        RoundedCornerShape(8.dp)
+                                    ) else Modifier
+                                )
+                                .clickable { viewModel.updateStripBackground(bg) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                bg.label,
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    color = if (isLight) Color.DarkGray else Color.White
+                                ),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
             }
 
             // Druckoptionen

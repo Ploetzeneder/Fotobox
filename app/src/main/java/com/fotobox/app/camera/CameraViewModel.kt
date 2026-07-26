@@ -206,7 +206,8 @@ class CameraViewModel @Inject constructor(
         val strip = StripComposer.compose(
             filteredBitmaps,
             _uiState.value.selectedLayout,
-            eventName = settings.eventName
+            eventName = settings.eventName,
+            backgroundColor = settings.stripBackground.colorArgb
         )
         val stripPath = BitmapUtils.saveBitmap(context, strip, "strip_$sessionId")
         repository.updateStripPath(sessionId, stripPath)

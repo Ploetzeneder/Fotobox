@@ -43,6 +43,14 @@ enum class CountdownDuration(val seconds: Int, val label: String) {
     LONG(10, "10 Sek"),
 }
 
+enum class StripBackground(val label: String, val colorArgb: Int) {
+    WHITE("Weiß", 0xFFFFFFFF.toInt()),
+    IVORY("Creme", 0xFFFFFAF0.toInt()),
+    LIGHT_GRAY("Hellgrau", 0xFFF0F0F0.toInt()),
+    BLACK("Schwarz", 0xFF1A1A1A.toInt()),
+    DARK_PINK("Dunkelrosa", 0xFF3D0A22.toInt()),
+}
+
 @Entity(tableName = "photo_sessions")
 data class PhotoSession(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -89,6 +97,7 @@ data class FotoboxSettings(
     val countdownDuration: CountdownDuration = CountdownDuration.SHORT,
     val stripLayout: StripLayout = StripLayout.STRIP_4,
     val defaultFilter: PhotoFilter = PhotoFilter.NONE,
+    val stripBackground: StripBackground = StripBackground.WHITE,
     val useFlash: Boolean = true,
     val kioskMode: Boolean = false,
     val settingsPin: String = "",

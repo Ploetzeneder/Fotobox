@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.fotobox.app.data.models.CountdownDuration
 import com.fotobox.app.data.models.FotoboxSettings
 import com.fotobox.app.data.models.PhotoFilter
+import com.fotobox.app.data.models.StripBackground
 import com.fotobox.app.data.models.StripLayout
 import com.fotobox.app.data.repository.FotoboxRepository
 import com.fotobox.app.network.DalleClient
@@ -43,6 +44,7 @@ class SettingsViewModel @Inject constructor(
     fun updateAutoPrint(v: Boolean) = update { it.copy(autoPrint = v) }
     fun updatePrintCopies(n: Int) = update { it.copy(printCopies = n.coerceIn(1, 5)) }
     fun updateAutoReturnDelay(seconds: Int) = update { it.copy(autoReturnDelay = seconds) }
+    fun updateStripBackground(bg: StripBackground) = update { it.copy(stripBackground = bg) }
     fun updateAiApiKey(key: String) = update { it.copy(aiApiKey = key) }
     fun updateAutoUpload(v: Boolean) = update { it.copy(autoUploadCloud = v) }
 

@@ -20,35 +20,36 @@ object StripComposer {
         photos: List<Bitmap>,
         layout: StripLayout,
         eventName: String = "",
-        addTimestamp: Boolean = true
+        addTimestamp: Boolean = true,
+        backgroundColor: Int = Color.WHITE
     ): Bitmap {
         return when (layout) {
             StripLayout.SINGLE -> {
                 val p = normalizeWidth(photos[0])
-                withFooter(p, eventName, addTimestamp)
+                withFooter(p, eventName, addTimestamp, backgroundColor)
             }
             StripLayout.STRIP_2 ->
-                composeColumn(photos.take(2).map { normalizeWidth(it) }, eventName, addTimestamp)
+                composeColumn(photos.take(2).map { normalizeWidth(it) }, eventName, addTimestamp, backgroundColor)
             StripLayout.STRIP_3 ->
-                composeColumn(photos.take(3).map { normalizeWidth(it) }, eventName, addTimestamp)
+                composeColumn(photos.take(3).map { normalizeWidth(it) }, eventName, addTimestamp, backgroundColor)
             StripLayout.STRIP_4 ->
-                composeColumn(photos.take(4).map { normalizeWidth(it) }, eventName, addTimestamp)
+                composeColumn(photos.take(4).map { normalizeWidth(it) }, eventName, addTimestamp, backgroundColor)
             StripLayout.GRID_4 ->
-                composeGrid(photos.take(4).map { normalizeWidth(it) }, 2, 2, eventName, addTimestamp)
+                composeGrid(photos.take(4).map { normalizeWidth(it) }, 2, 2, eventName, addTimestamp, backgroundColor)
             StripLayout.GRID_6 ->
-                composeGrid(photos.take(6).map { normalizeWidth(it) }, 2, 3, eventName, addTimestamp)
+                composeGrid(photos.take(6).map { normalizeWidth(it) }, 2, 3, eventName, addTimestamp, backgroundColor)
             StripLayout.GRID_9 ->
-                composeGrid(photos.take(9).map { normalizeSmall(it) }, 3, 3, eventName, addTimestamp)
+                composeGrid(photos.take(9).map { normalizeSmall(it) }, 3, 3, eventName, addTimestamp, backgroundColor)
             StripLayout.ROW_2 ->
-                composeRow(photos.take(2).map { normalizeHeight(it) }, eventName, addTimestamp)
+                composeRow(photos.take(2).map { normalizeHeight(it) }, eventName, addTimestamp, backgroundColor)
             StripLayout.ROW_3 ->
-                composeRow(photos.take(3).map { normalizeHeight(it) }, eventName, addTimestamp)
+                composeRow(photos.take(3).map { normalizeHeight(it) }, eventName, addTimestamp, backgroundColor)
             StripLayout.ROW_4 ->
-                composeRow(photos.take(4).map { normalizeHeight(it) }, eventName, addTimestamp)
+                composeRow(photos.take(4).map { normalizeHeight(it) }, eventName, addTimestamp, backgroundColor)
             StripLayout.HERO_PLUS_2 ->
-                composeHero(photos.take(3), 2, eventName, addTimestamp)
+                composeHero(photos.take(3), 2, eventName, addTimestamp, backgroundColor)
             StripLayout.HERO_PLUS_3 ->
-                composeHero(photos.take(4), 3, eventName, addTimestamp)
+                composeHero(photos.take(4), 3, eventName, addTimestamp, backgroundColor)
         }
     }
 
@@ -64,7 +65,7 @@ object StripComposer {
 
     private fun normalizeSmall(bitmap: Bitmap): Bitmap = normalizeWidth(bitmap, 520)
 
-    private fun composeColumn(photos: List<Bitmap>, eventName: String, addTimestamp: Boolean): Bitmap {
+    private fun composeColumn(photos: List<Bitmap>, eventName: String, addTimestamp: Boolean, bg: Int): Bitmap {
         val cellW = photos[0].width
         val cellH = photos[0].height
         val footerH = footerHeight(eventName, addTimestamp)
@@ -72,28 +73,28 @@ object StripComposer {
         val totalH = BORDER * 2 + photos.size * cellH + (photos.size - 1) * GAP + footerH
         val result = Bitmap.createBitmap(totalW, totalH, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(result)
-        canvas.drawColor(Color.WHITE)
+        canvas.drawColor(bg)
         photos.forEachIndexed { i, bmp ->
             canvas.drawBitmap(bmp, BORDER.toFloat(), (BORDER + i * (cellH + GAP)).toFloat(), null)
         }
-        if (footerH > 0) drawFooter(canvas, totalW, totalH, footerH, eventName, addTimestamp)
+        if (footerH > 0) drawFooter(canvas, totalW, totalH, footerH, eventName, addTimestamp, bg)
         return result
     }
 
-    private fun composeRow(photos: List<Bitmap>, eventName: String, addTimestamp: Boolean): Bitmap {
+    private fun composeRow(photos: List<Bitmap>, eventName: String, addTimestamp: Boolean, bg: Int): Bitmap {
         val cellH = photos[0].height
         val footerH = footerHeight(eventName, addTimestamp)
         val totalW = BORDER * 2 + photos.sumOf { it.width } + (photos.size - 1) * GAP
         val totalH = BORDER * 2 + cellH + footerH
         val result = Bitmap.createBitmap(totalW, totalH, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(result)
-        canvas.drawColor(Color.WHITE)
+        canvas.drawColor(bg)
         var x = BORDER.toFloat()
         for (bmp in photos) {
             canvas.drawBitmap(bmp, x, BORDER.toFloat(), null)
             x += bmp.width + GAP
         }
-        if (footerH > 0) drawFooter(canvas, totalW, totalH, footerH, eventName, addTimestamp)
+        if (footerH > 0) drawFooter(canvas, totalW, totalH, footerH, eventName, addTimestamp, bg)
         return result
     }
 
@@ -102,7 +103,8 @@ object StripComposer {
         cols: Int,
         rows: Int,
         eventName: String,
-        addTimestamp: Boolean
+        addTimestamp: Boolean,
+        bg: Int
     ): Bitmap {
         val cellW = photos[0].width
         val cellH = photos[0].height
@@ -111,7 +113,7 @@ object StripComposer {
         val totalH = BORDER * 2 + rows * cellH + (rows - 1) * GAP + footerH
         val result = Bitmap.createBitmap(totalW, totalH, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(result)
-        canvas.drawColor(Color.WHITE)
+        canvas.drawColor(bg)
         photos.forEachIndexed { i, bmp ->
             val col = i % cols
             val row = i / cols
@@ -119,7 +121,7 @@ object StripComposer {
             val y = (BORDER + row * (cellH + GAP)).toFloat()
             canvas.drawBitmap(bmp, x, y, null)
         }
-        if (footerH > 0) drawFooter(canvas, totalW, totalH, footerH, eventName, addTimestamp)
+        if (footerH > 0) drawFooter(canvas, totalW, totalH, footerH, eventName, addTimestamp, bg)
         return result
     }
 
@@ -127,7 +129,8 @@ object StripComposer {
         photos: List<Bitmap>,
         sideCount: Int,
         eventName: String,
-        addTimestamp: Boolean
+        addTimestamp: Boolean,
+        bg: Int
     ): Bitmap {
         val hero = normalizeWidth(photos[0], 900)
         val heroW = hero.width
@@ -147,7 +150,7 @@ object StripComposer {
 
         val result = Bitmap.createBitmap(totalW, totalH, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(result)
-        canvas.drawColor(Color.WHITE)
+        canvas.drawColor(bg)
 
         canvas.drawBitmap(hero, BORDER.toFloat(), BORDER.toFloat(), null)
 
@@ -158,19 +161,19 @@ object StripComposer {
             sideY += bmp.height + GAP
         }
 
-        if (footerH > 0) drawFooter(canvas, totalW, totalH, footerH, eventName, addTimestamp)
+        if (footerH > 0) drawFooter(canvas, totalW, totalH, footerH, eventName, addTimestamp, bg)
         return result
     }
 
-    private fun withFooter(photo: Bitmap, eventName: String, addTimestamp: Boolean): Bitmap {
+    private fun withFooter(photo: Bitmap, eventName: String, addTimestamp: Boolean, bg: Int): Bitmap {
         val footerH = footerHeight(eventName, addTimestamp)
         val totalW = BORDER * 2 + photo.width
         val totalH = BORDER * 2 + photo.height + footerH
         val result = Bitmap.createBitmap(totalW, totalH, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(result)
-        canvas.drawColor(Color.WHITE)
+        canvas.drawColor(bg)
         canvas.drawBitmap(photo, BORDER.toFloat(), BORDER.toFloat(), null)
-        if (footerH > 0) drawFooter(canvas, totalW, totalH, footerH, eventName, addTimestamp)
+        if (footerH > 0) drawFooter(canvas, totalW, totalH, footerH, eventName, addTimestamp, bg)
         return result
     }
 
@@ -183,10 +186,15 @@ object StripComposer {
         totalH: Int,
         footerH: Int,
         eventName: String,
-        addTimestamp: Boolean
+        addTimestamp: Boolean,
+        bg: Int = Color.WHITE
     ) {
+        // Use dark text on light backgrounds, light text on dark backgrounds
+        val luminance = (0.299 * Color.red(bg) + 0.587 * Color.green(bg) + 0.114 * Color.blue(bg)) / 255.0
+        val textColor = if (luminance > 0.4) Color.DKGRAY else Color.argb(200, 220, 220, 220)
+
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.DKGRAY
+            color = textColor
             textAlign = Paint.Align.CENTER
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
