@@ -1,7 +1,6 @@
 package com.fotobox.app.ui.screens
 
 import android.content.Context
-import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -53,13 +52,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.fotobox.app.ui.viewmodels.PhotoReviewViewModel
 import com.fotobox.app.utils.QrUtils
+import com.fotobox.app.utils.ShareUtils
 import com.fotobox.app.utils.printStrip
-import java.io.File
 import kotlinx.coroutines.delay
 
 @Composable
@@ -179,7 +177,7 @@ fun PhotoReviewScreen(
                 }
 
                 Button(
-                    onClick = { uiState.stripPath?.let { sharePhoto(context, it) } },
+                    onClick = { uiState.stripPath?.let { ShareUtils.sharePhoto(context, it) } },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.Share, null, modifier = Modifier.size(16.dp))
@@ -299,13 +297,3 @@ fun PhotoReviewScreen(
     }
 }
 
-private fun sharePhoto(context: Context, path: String) {
-    val file = File(path)
-    if (!file.exists()) return
-    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-        type = "image/jpeg"
-        putExtra(Intent.EXTRA_STREAM, uri)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }, "Foto teilen"))
-}

@@ -1,6 +1,9 @@
 package com.fotobox.app.network
 
 import com.fotobox.app.data.models.AudioRecording
+import com.fotobox.app.data.models.CountdownDuration
+import com.fotobox.app.data.models.PhotoFilter
+import com.fotobox.app.data.models.StripLayout
 import com.fotobox.app.data.repository.FotoboxRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -84,9 +87,17 @@ class CloudSyncManager @Inject constructor(
         return try {
             val cloud = currentApi.getSettings(boxId) ?: return false
             val current = repository.loadSettings()
+            val layout = runCatching { StripLayout.valueOf(cloud.stripLayout) }.getOrNull() ?: current.stripLayout
+            val filter = runCatching { PhotoFilter.valueOf(cloud.defaultFilter) }.getOrNull() ?: current.defaultFilter
+            val countdown = CountdownDuration.entries.minByOrNull {
+                kotlin.math.abs(it.seconds - cloud.countdownSeconds)
+            } ?: current.countdownDuration
             repository.saveSettings(
                 current.copy(
                     eventName = cloud.eventName.ifEmpty { current.eventName },
+                    stripLayout = layout,
+                    defaultFilter = filter,
+                    countdownDuration = countdown,
                     autoPrint = cloud.autoPrint,
                     printCopies = cloud.printCopies,
                 )

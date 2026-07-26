@@ -2,8 +2,6 @@ package com.fotobox.app.utils
 
 import android.content.Context
 import android.content.Intent
-import android.print.PrintAttributes
-import android.print.PrintManager
 
 object ShareUtils {
 
