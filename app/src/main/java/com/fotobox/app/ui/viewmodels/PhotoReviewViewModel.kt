@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -57,14 +58,16 @@ class PhotoReviewViewModel @Inject constructor(
             val session = repository.getSession(sessionId)
             val photos = repository.getPhotosForSession(sessionId)
             val settings = repository.loadSettings()
-            _uiState.value = PhotoReviewUiState(
-                photos = photos,
-                stripPath = session?.stripFilePath,
-                isLoading = false,
-                shouldAutoPrint = settings.autoPrint,
-                printCopies = settings.printCopies,
-                autoReturnDelay = settings.autoReturnDelay
-            )
+            _uiState.update {
+                it.copy(
+                    photos = photos,
+                    stripPath = session?.stripFilePath,
+                    isLoading = false,
+                    shouldAutoPrint = settings.autoPrint,
+                    printCopies = settings.printCopies,
+                    autoReturnDelay = settings.autoReturnDelay
+                )
+            }
             if (settings.autoUploadCloud) {
                 cloudSync.syncSessionAsync(sessionId)
             }
@@ -78,12 +81,13 @@ class PhotoReviewViewModel @Inject constructor(
             val qr = withContext(Dispatchers.Default) {
                 QrUtils.generateStyledQrBitmap(url, "Foto herunterladen")
             }
-            _uiState.value = _uiState.value.copy(qrBitmap = qr)
+            _uiState.update { it.copy(qrBitmap = qr) }
         }
     }
 
     override fun onCleared() {
         server.stop()
+        _uiState.value.qrBitmap?.recycle()
         super.onCleared()
     }
 }

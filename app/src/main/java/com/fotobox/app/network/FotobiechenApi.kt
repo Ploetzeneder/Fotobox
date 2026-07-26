@@ -47,7 +47,7 @@ class FotobiechenApi(
                 Request.Builder().url("$baseUrl/auth/login").post(body).build()
             ).execute()
             if (response.isSuccessful) {
-                val json = JSONObject(response.body!!.string())
+                val json = JSONObject(response.body?.string() ?: return@withContext null)
                 LoginResult(
                     token = json.getString("token"),
                     boxId = json.getString("box_id"),
@@ -66,7 +66,7 @@ class FotobiechenApi(
                     .get().build()
             ).execute()
             if (response.isSuccessful) {
-                val json = JSONObject(response.body!!.string())
+                val json = JSONObject(response.body?.string() ?: return@withContext null)
                 CloudSettings(
                     eventName = json.optString("event_name", ""),
                     stripLayout = json.optString("strip_layout", "STRIP_4"),
@@ -95,7 +95,7 @@ class FotobiechenApi(
                         .post(body).build()
                 ).execute()
                 if (response.isSuccessful) {
-                    val json = JSONObject(response.body!!.string())
+                    val json = JSONObject(response.body?.string() ?: return@withContext null)
                     UploadResult(json.getString("photo_id"), json.getString("url"), null)
                 } else null
             } catch (_: Exception) { null }
@@ -116,7 +116,7 @@ class FotobiechenApi(
                         .post(body).build()
                 ).execute()
                 if (response.isSuccessful) {
-                    val json = JSONObject(response.body!!.string())
+                    val json = JSONObject(response.body?.string() ?: return@withContext null)
                     UploadResult(
                         id = json.getString("strip_id"),
                         url = json.getString("url"),

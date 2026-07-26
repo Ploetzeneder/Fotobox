@@ -26,12 +26,14 @@ object QrUtils {
         val writer = QRCodeWriter()
         val matrix = writer.encode(content, BarcodeFormat.QR_CODE, sizePx, sizePx, hints)
 
-        val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-        for (x in 0 until sizePx) {
-            for (y in 0 until sizePx) {
-                bitmap.setPixel(x, y, if (matrix[x, y]) fgColor else bgColor)
+        val pixels = IntArray(sizePx * sizePx)
+        for (y in 0 until sizePx) {
+            for (x in 0 until sizePx) {
+                pixels[y * sizePx + x] = if (matrix[x, y]) fgColor else bgColor
             }
         }
+        val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        bitmap.setPixels(pixels, 0, sizePx, 0, 0, sizePx, sizePx)
         return bitmap
     }
 
@@ -71,6 +73,7 @@ object QrUtils {
             ),
             qrPaint
         )
+        qr.recycle()
 
         // Label
         val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
