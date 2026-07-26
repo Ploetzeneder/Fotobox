@@ -69,18 +69,18 @@ class FotoboxRepository @Inject constructor(
 
     // Settings
     fun loadSettings(): FotoboxSettings = FotoboxSettings(
-        countdownDuration = CountdownDuration.valueOf(
-            prefs.getString("countdown", CountdownDuration.SHORT.name)!!
-        ),
-        stripLayout = StripLayout.valueOf(
-            prefs.getString("strip_layout", StripLayout.STRIP_4.name)!!
-        ),
-        defaultFilter = PhotoFilter.valueOf(
-            prefs.getString("default_filter", PhotoFilter.NONE.name)!!
-        ),
-        stripBackground = StripBackground.valueOf(
-            prefs.getString("strip_background", StripBackground.WHITE.name)!!
-        ),
+        countdownDuration = runCatching {
+            CountdownDuration.valueOf(prefs.getString("countdown", CountdownDuration.SHORT.name)!!)
+        }.getOrDefault(CountdownDuration.SHORT),
+        stripLayout = runCatching {
+            StripLayout.valueOf(prefs.getString("strip_layout", StripLayout.STRIP_4.name)!!)
+        }.getOrDefault(StripLayout.STRIP_4),
+        defaultFilter = runCatching {
+            PhotoFilter.valueOf(prefs.getString("default_filter", PhotoFilter.NONE.name)!!)
+        }.getOrDefault(PhotoFilter.NONE),
+        stripBackground = runCatching {
+            StripBackground.valueOf(prefs.getString("strip_background", StripBackground.WHITE.name)!!)
+        }.getOrDefault(StripBackground.WHITE),
         useFlash = prefs.getBoolean("use_flash", true),
         kioskMode = prefs.getBoolean("kiosk_mode", false),
         settingsPin = prefs.getString("settings_pin", "") ?: "",
