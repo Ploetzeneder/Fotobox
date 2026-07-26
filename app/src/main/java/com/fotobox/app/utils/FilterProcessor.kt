@@ -71,6 +71,28 @@ object FilterProcessor {
                 faded.preConcat(sat)
                 cm.set(faded)
             }
+            PhotoFilter.HIGH_CONTRAST -> cm.set(
+                floatArrayOf(
+                    2.0f, 0f, 0f, 0f, -128f,
+                    0f, 2.0f, 0f, 0f, -128f,
+                    0f, 0f, 2.0f, 0f, -128f,
+                    0f, 0f, 0f, 1f, 0f
+                )
+            )
+            PhotoFilter.FADED -> {
+                val sat = ColorMatrix()
+                sat.setSaturation(0.75f)
+                val lift = ColorMatrix(
+                    floatArrayOf(
+                        0.85f, 0f, 0f, 0f, 30f,
+                        0f, 0.85f, 0f, 0f, 25f,
+                        0f, 0f, 0.85f, 0f, 20f,
+                        0f, 0f, 0f, 1f, 0f
+                    )
+                )
+                lift.preConcat(sat)
+                cm.set(lift)
+            }
         }
         return cm
     }

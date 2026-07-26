@@ -60,6 +60,7 @@ import com.fotobox.app.camera.CameraState
 import com.fotobox.app.camera.CameraType
 import com.fotobox.app.camera.CameraViewModel
 import com.fotobox.app.data.models.PhotoFilter
+import com.fotobox.app.data.models.StripLayout
 import com.fotobox.app.ui.components.BetweenShotsOverlay
 import com.fotobox.app.ui.components.CountdownOverlay
 import com.fotobox.app.ui.components.FlashEffect
@@ -111,13 +112,14 @@ fun CameraScreen(
                     filters = PhotoFilter.entries,
                     selectedFilter = uiState.selectedFilter,
                     onFilterSelected = viewModel::selectFilter,
+                    layouts = StripLayout.entries,
+                    selectedLayout = uiState.selectedLayout,
+                    onLayoutSelected = viewModel::selectLayout,
                     onStart = viewModel::startSession,
                     cameras = uiState.cameras.map { it.type },
                     selectedCameraIndex = uiState.selectedCameraIndex,
                     onSelectCamera = viewModel::selectCamera,
-                    onBack = onBack,
-                    layoutLabel = uiState.selectedLayout.label,
-                    photoCount = uiState.selectedLayout.photoCount
+                    onBack = onBack
                 )
                 is CameraState.Countdown -> CountdownOverlay(
                     seconds = state.seconds,
@@ -175,13 +177,14 @@ private fun IdleOverlay(
     filters: List<PhotoFilter>,
     selectedFilter: PhotoFilter,
     onFilterSelected: (PhotoFilter) -> Unit,
+    layouts: List<StripLayout>,
+    selectedLayout: StripLayout,
+    onLayoutSelected: (StripLayout) -> Unit,
     onStart: () -> Unit,
     cameras: List<CameraType>,
     selectedCameraIndex: Int,
     onSelectCamera: (Int) -> Unit,
-    onBack: () -> Unit,
-    layoutLabel: String,
-    photoCount: Int
+    onBack: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
 
@@ -202,14 +205,6 @@ private fun IdleOverlay(
             ) {
                 Icon(Icons.Default.ArrowBack, "Zurück", tint = Color.White)
             }
-
-            Text(
-                text = "$layoutLabel · $photoCount Fotos",
-                style = MaterialTheme.typography.labelLarge.copy(color = Color.White),
-                modifier = Modifier
-                    .background(Color.Black.copy(0.55f), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            )
 
             // Kamera-Auswahl (zeigt USB-Kamera zuerst)
             if (cameras.size > 1) {
@@ -237,10 +232,24 @@ private fun IdleOverlay(
                 .padding(bottom = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Layout-Auswahl
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            ) {
+                items(layouts) { layout ->
+                    LayoutChip(
+                        layout = layout,
+                        isSelected = layout == selectedLayout,
+                        onClick = { onLayoutSelected(layout) }
+                    )
+                }
+            }
+
             // Filter-Auswahl
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
             ) {
                 items(filters) { filter ->
                     FilterChip(
@@ -251,7 +260,7 @@ private fun IdleOverlay(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Auslöser
             Box(
@@ -271,10 +280,10 @@ private fun IdleOverlay(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                "Tippen zum Starten",
+                "${selectedLayout.icon} ${selectedLayout.label} · ${selectedLayout.photoCount} Fotos",
                 style = MaterialTheme.typography.bodyLarge.copy(
                     color = Color.White,
                     fontWeight = FontWeight.Medium
@@ -320,6 +329,24 @@ private fun FilterChip(filter: PhotoFilter, isSelected: Boolean, onClick: () -> 
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Text(filter.label, style = MaterialTheme.typography.labelLarge.copy(color = Color.White))
+    }
+}
+
+@Composable
+private fun LayoutChip(layout: StripLayout, isSelected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                if (isSelected) MaterialTheme.colorScheme.secondary else Color.Black.copy(0.45f)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 5.dp)
+    ) {
+        Text(
+            "${layout.icon} ${layout.label}",
+            style = MaterialTheme.typography.labelLarge.copy(color = Color.White)
+        )
     }
 }
 
