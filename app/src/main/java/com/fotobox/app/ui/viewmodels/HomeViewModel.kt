@@ -24,6 +24,10 @@ class HomeViewModel @Inject constructor(
         .map { it.size }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    val totalPrints: StateFlow<Int> = repository.getAllSessions()
+        .map { sessions -> sessions.sumOf { it.printCount } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     val audioCount: StateFlow<Int> = repository.getAllAudioRecordings()
         .map { it.size }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)

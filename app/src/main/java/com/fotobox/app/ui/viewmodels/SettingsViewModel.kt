@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fotobox.app.data.models.CountdownDuration
 import com.fotobox.app.data.models.FotoboxSettings
+import com.fotobox.app.data.models.FrameStyle
 import com.fotobox.app.data.models.PhotoFilter
 import com.fotobox.app.data.models.StripBackground
 import com.fotobox.app.data.models.StripLayout
@@ -57,6 +58,7 @@ class SettingsViewModel @Inject constructor(
     fun updateAiApiKey(key: String) = update { it.copy(aiApiKey = key) }
     fun updateAutoUpload(v: Boolean) = update { it.copy(autoUploadCloud = v) }
     fun updateLocalServerPort(port: Int) = update { it.copy(localServerPort = port.coerceIn(1024, 65535)) }
+    fun updateFrameStyle(style: FrameStyle) = update { it.copy(frameStyle = style) }
 
     fun generateAiBackground() {
         val key = _settings.value.aiApiKey

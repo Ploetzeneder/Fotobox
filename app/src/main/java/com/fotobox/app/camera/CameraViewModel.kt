@@ -245,7 +245,8 @@ class CameraViewModel @Inject constructor(
                     layout,
                     eventName = settings.eventName,
                     backgroundColor = settings.stripBackground.colorArgb,
-                    logoBitmap = logoBitmap
+                    logoBitmap = logoBitmap,
+                    frameStyle = settings.frameStyle
                 )
             }
             logoBitmap?.recycle()

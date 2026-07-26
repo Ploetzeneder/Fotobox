@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
+import com.fotobox.app.data.models.FrameStyle
 import com.fotobox.app.data.models.StripLayout
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -23,11 +24,56 @@ object StripComposer {
         eventName: String = "",
         addTimestamp: Boolean = true,
         backgroundColor: Int = Color.WHITE,
-        logoBitmap: Bitmap? = null
+        logoBitmap: Bitmap? = null,
+        frameStyle: FrameStyle = FrameStyle.NONE
     ): Bitmap {
         val result = composeLayout(photos, layout, eventName, addTimestamp, backgroundColor)
+        if (frameStyle != FrameStyle.NONE) overlayFrame(result, frameStyle)
         if (logoBitmap != null) overlayLogo(result, logoBitmap)
         return result
+    }
+
+    private fun overlayFrame(bitmap: Bitmap, style: FrameStyle) {
+        val canvas = Canvas(bitmap)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.style = Paint.Style.STROKE
+        }
+        val m = 14f
+        val rect = RectF(m, m, bitmap.width - m, bitmap.height - m)
+        when (style) {
+            FrameStyle.NONE -> return
+            FrameStyle.THIN_BLACK -> {
+                paint.color = Color.argb(220, 0, 0, 0)
+                paint.strokeWidth = 6f
+                canvas.drawRect(rect, paint)
+            }
+            FrameStyle.THIN_WHITE -> {
+                paint.color = Color.argb(220, 255, 255, 255)
+                paint.strokeWidth = 6f
+                canvas.drawRect(rect, paint)
+            }
+            FrameStyle.ROUNDED -> {
+                paint.color = Color.argb(220, 255, 255, 255)
+                paint.strokeWidth = 9f
+                canvas.drawRoundRect(rect, 36f, 36f, paint)
+            }
+            FrameStyle.DOUBLE -> {
+                paint.color = Color.argb(210, 20, 20, 20)
+                paint.strokeWidth = 3f
+                canvas.drawRect(rect, paint)
+                val inner = RectF(m + 9, m + 9, bitmap.width - m - 9, bitmap.height - m - 9)
+                canvas.drawRect(inner, paint)
+            }
+            FrameStyle.GOLD -> {
+                paint.color = Color.argb(230, 212, 175, 55)
+                paint.strokeWidth = 11f
+                canvas.drawRect(rect, paint)
+                paint.strokeWidth = 2f
+                paint.color = Color.argb(180, 255, 230, 100)
+                val inner = RectF(m + 14, m + 14, bitmap.width - m - 14, bitmap.height - m - 14)
+                canvas.drawRect(inner, paint)
+            }
+        }
     }
 
     private fun composeLayout(

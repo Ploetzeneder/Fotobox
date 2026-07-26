@@ -8,6 +8,7 @@ import com.fotobox.app.data.db.PhotoSessionDao
 import com.fotobox.app.data.models.AudioRecording
 import com.fotobox.app.data.models.CountdownDuration
 import com.fotobox.app.data.models.FotoboxSettings
+import com.fotobox.app.data.models.FrameStyle
 import com.fotobox.app.data.models.Photo
 import com.fotobox.app.data.models.PhotoFilter
 import com.fotobox.app.data.models.PhotoSession
@@ -96,6 +97,9 @@ class FotoboxRepository @Inject constructor(
         autoReturnDelay = prefs.getInt("auto_return_delay", 0),
         idleSlideshowDelay = prefs.getInt("idle_slideshow_delay", 0),
         localServerPort = prefs.getInt("server_port", 8888),
+        frameStyle = runCatching {
+            FrameStyle.valueOf(prefs.getString("frame_style", FrameStyle.NONE.name)!!)
+        }.getOrDefault(FrameStyle.NONE),
         aiApiKey = prefs.getString("ai_api_key", "") ?: "",
         cloudApiUrl = prefs.getString("cloud_api_url", "https://fotobienchen.de/api") ?: "https://fotobienchen.de/api",
         cloudToken = prefs.getString("cloud_token", "") ?: "",
@@ -121,6 +125,7 @@ class FotoboxRepository @Inject constructor(
             putInt("auto_return_delay", settings.autoReturnDelay)
             putInt("idle_slideshow_delay", settings.idleSlideshowDelay)
             putInt("server_port", settings.localServerPort)
+            putString("frame_style", settings.frameStyle.name)
             putString("ai_api_key", settings.aiApiKey)
             putString("cloud_api_url", settings.cloudApiUrl)
             putString("cloud_token", settings.cloudToken)

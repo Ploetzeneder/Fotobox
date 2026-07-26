@@ -1,6 +1,10 @@
 package com.fotobox.app
 
+import android.os.Build
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -43,9 +47,20 @@ class MainActivity : ComponentActivity() {
             || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_DPAD_CENTER
             || keyCode == KeyEvent.KEYCODE_SPACE || keyCode == KeyEvent.KEYCODE_CAMERA) {
             shutterTrigger.trigger()
+            vibrateShutter()
             return true
         }
         return super.onKeyDown(keyCode, event)
+    }
+
+    private fun vibrateShutter() {
+        val effect = VibrationEffect.createOneShot(55, VibrationEffect.DEFAULT_AMPLITUDE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            getSystemService(VibratorManager::class.java)?.defaultVibrator?.vibrate(effect)
+        } else {
+            @Suppress("DEPRECATION")
+            getSystemService(Vibrator::class.java)?.vibrate(effect)
+        }
     }
 
     private fun setupFullscreen() {

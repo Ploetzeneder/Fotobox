@@ -84,6 +84,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val sessionCount by viewModel.sessionCount.collectAsState()
+    val totalPrints by viewModel.totalPrints.collectAsState()
     val audioCount by viewModel.audioCount.collectAsState()
     val eventName by viewModel.eventName.collectAsState()
     val syncStatus by viewModel.syncStatus.collectAsState()
@@ -265,7 +266,10 @@ fun HomeScreen(
                 text = if (sessionCount > 0) "$sessionCount Aufnahmen" else "Keine Aufnahmen",
                 color = Color.White.copy(0.25f)
             )
-            StatusChip(text = "Fotobox v1.0", color = Color.White.copy(0.15f))
+            StatusChip(
+                text = if (totalPrints > 0) "$totalPrints Drucke" else "Fotobox v1.0",
+                color = Color.White.copy(0.15f)
+            )
             StatusChip(
                 text = if (audioCount > 0) "$audioCount Stimmen" else "Gästebuch leer",
                 color = Color.White.copy(0.25f)

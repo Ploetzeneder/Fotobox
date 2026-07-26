@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.fotobox.app.data.models.CountdownDuration
+import com.fotobox.app.data.models.FrameStyle
 import com.fotobox.app.data.models.PhotoFilter
 import com.fotobox.app.data.models.StripBackground
 import com.fotobox.app.data.models.StripLayout
@@ -302,6 +303,62 @@ fun SettingsScreen(
                         ),
                         modifier = Modifier.padding(top = 6.dp)
                     )
+                }
+            }
+
+            // Rahmen-Stil
+            SettingsSection("Rahmen-Stil") {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    FrameStyle.entries.forEach { style ->
+                        val isSelected = style == settings.frameStyle
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surface
+                                )
+                                .then(
+                                    if (!isSelected) Modifier.border(
+                                        1.dp,
+                                        MaterialTheme.colorScheme.outline.copy(0.3f),
+                                        RoundedCornerShape(8.dp)
+                                    ) else Modifier
+                                )
+                                .clickable { viewModel.updateFrameStyle(style) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(4.dp)
+                            ) {
+                                Text(
+                                    style.icon,
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                                else MaterialTheme.colorScheme.onSurface
+                                    )
+                                )
+                                Text(
+                                    style.label,
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = androidx.compose.ui.unit.TextUnit(
+                                            9f, androidx.compose.ui.unit.TextUnitType.Sp
+                                        )
+                                    ),
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
                 }
             }
 

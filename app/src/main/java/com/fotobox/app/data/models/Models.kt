@@ -51,6 +51,15 @@ enum class StripBackground(val label: String, val colorArgb: Int) {
     DARK_PINK("Dunkelrosa", 0xFF3D0A22.toInt()),
 }
 
+enum class FrameStyle(val label: String, val icon: String) {
+    NONE("Kein", "□"),
+    THIN_BLACK("Schwarz", "▣"),
+    THIN_WHITE("Weiß", "◻"),
+    ROUNDED("Abgerundet", "▢"),
+    DOUBLE("Doppelt", "⊡"),
+    GOLD("Gold", "◈"),
+}
+
 @Entity(tableName = "photo_sessions")
 data class PhotoSession(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -108,6 +117,7 @@ data class FotoboxSettings(
     val autoReturnDelay: Int = 0,
     val idleSlideshowDelay: Int = 0,
     val localServerPort: Int = 8888,
+    val frameStyle: FrameStyle = FrameStyle.NONE,
     val aiApiKey: String = "",
     // Fotobienchen Cloud
     val cloudApiUrl: String = "https://fotobienchen.de/api",

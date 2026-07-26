@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -45,6 +47,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +58,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -64,6 +69,7 @@ import coil.compose.AsyncImage
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import kotlin.math.abs
 import kotlinx.coroutines.launch
 import com.fotobox.app.data.models.PhotoSession
 import com.fotobox.app.ui.viewmodels.GalleryViewModel
@@ -86,6 +92,7 @@ fun GalleryScreen(
     var deleteTarget by remember { mutableStateOf<PhotoSession?>(null) }
     var fullscreenSession by remember { mutableStateOf<PhotoSession?>(null) }
     var exporting by remember { mutableStateOf(false) }
+    var exportPendingAfterPermission by remember { mutableStateOf(false) }
 
     val writePermission = rememberPermissionState(Manifest.permission.WRITE_EXTERNAL_STORAGE)
 
@@ -97,6 +104,17 @@ fun GalleryScreen(
             snackbarHostState.showSnackbar(
                 if (count > 0) "$count Fotos in Galerie gespeichert" else "Export fehlgeschlagen"
             )
+        }
+    }
+
+    LaunchedEffect(writePermission.status.isGranted) {
+        if (exportPendingAfterPermission) {
+            exportPendingAfterPermission = false
+            if (writePermission.status.isGranted) {
+                doExport()
+            } else {
+                snackbarHostState.showSnackbar("Speicher-Berechtigung verweigert")
+            }
         }
     }
 
@@ -130,6 +148,7 @@ fun GalleryScreen(
                             val needsPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
                                     && !writePermission.status.isGranted
                             if (needsPermission) {
+                                exportPendingAfterPermission = true
                                 writePermission.launchPermissionRequest()
                             } else {
                                 doExport()
@@ -253,11 +272,22 @@ private fun FullscreenPhotoViewer(
     onSave: () -> Unit,
     onDelete: () -> Unit
 ) {
+    var offsetY by remember { mutableStateOf(0f) }
+    val bgAlpha = (1f - (abs(offsetY) / 600f)).coerceIn(0.5f, 1f)
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(0.96f))
-            .clickable(onClick = onDismiss)
+            .background(Color.Black.copy(bgAlpha * 0.96f))
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onDragEnd = {
+                        if (abs(offsetY) > 150f) onDismiss() else offsetY = 0f
+                    },
+                    onDragCancel = { offsetY = 0f },
+                    onVerticalDrag = { _, delta -> offsetY += delta }
+                )
+            }
     ) {
         // Strip image centered
         AsyncImage(
@@ -266,7 +296,7 @@ private fun FullscreenPhotoViewer(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 32.dp, vertical = 80.dp)
-                .clickable { /* consume click so background doesn't dismiss */ },
+                .offset { IntOffset(0, offsetY.toInt()) },
             contentScale = ContentScale.Fit
         )
 

@@ -53,6 +53,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -215,6 +217,7 @@ private fun IdleOverlay(
     onSelectCamera: (Int) -> Unit,
     onBack: () -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     Box(modifier = Modifier.fillMaxSize()) {
 
         // Top bar
@@ -297,7 +300,10 @@ private fun IdleOverlay(
                     .size(88.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary)
-                    .clickable(onClick = onStart),
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onStart()
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Box(
