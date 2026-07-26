@@ -7,7 +7,6 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -24,14 +23,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Cameraswitch
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.FrontHand
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
@@ -54,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fotobox.app.camera.CameraState
+import com.fotobox.app.camera.CameraType
 import com.fotobox.app.camera.CameraViewModel
 import com.fotobox.app.data.models.PhotoFilter
 import com.fotobox.app.ui.components.BetweenShotsOverlay
@@ -89,9 +93,12 @@ fun CameraScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+
+        val selectedCameraInfo = uiState.selectedCamera?.cameraInfo
         CameraPreview(
-            useFrontCamera = uiState.useFrontCamera,
-            onCaptureBound = { viewModel.setImageCapture(it) }
+            cameraSelector = selectedCameraInfo?.cameraSelector ?: CameraSelector.DEFAULT_BACK_CAMERA,
+            onCaptureBound = { viewModel.setImageCapture(it) },
+            onCamerasDetected = { viewModel.setAvailableCameras(it) }
         )
 
         AnimatedContent(
@@ -105,9 +112,11 @@ fun CameraScreen(
                     selectedFilter = uiState.selectedFilter,
                     onFilterSelected = viewModel::selectFilter,
                     onStart = viewModel::startSession,
-                    onSwitchCamera = viewModel::toggleCamera,
+                    cameras = uiState.cameras.map { it.type },
+                    selectedCameraIndex = uiState.selectedCameraIndex,
+                    onSelectCamera = viewModel::selectCamera,
                     onBack = onBack,
-                    layout = uiState.selectedLayout.label,
+                    layoutLabel = uiState.selectedLayout.label,
                     photoCount = uiState.selectedLayout.photoCount
                 )
                 is CameraState.Countdown -> CountdownOverlay(
@@ -128,19 +137,19 @@ fun CameraScreen(
 
 @Composable
 private fun CameraPreview(
-    useFrontCamera: Boolean,
-    onCaptureBound: (ImageCapture) -> Unit
+    cameraSelector: CameraSelector,
+    onCaptureBound: (ImageCapture) -> Unit,
+    onCamerasDetected: (List<androidx.camera.core.CameraInfo>) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val previewView = remember { PreviewView(context) }
 
-    LaunchedEffect(useFrontCamera) {
+    LaunchedEffect(cameraSelector) {
         val cameraProvider = ProcessCameraProvider.getInstance(context).get()
-        val selector = if (useFrontCamera)
-            CameraSelector.DEFAULT_FRONT_CAMERA
-        else
-            CameraSelector.DEFAULT_BACK_CAMERA
+
+        // Alle verfügbaren Kameras melden (USB + eingebaut)
+        onCamerasDetected(cameraProvider.availableCameraInfos)
 
         val preview = Preview.Builder().build().also {
             it.setSurfaceProvider(previewView.surfaceProvider)
@@ -151,17 +160,14 @@ private fun CameraPreview(
 
         cameraProvider.unbindAll()
         try {
-            cameraProvider.bindToLifecycle(lifecycleOwner, selector, preview, imageCapture)
+            cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview, imageCapture)
             onCaptureBound(imageCapture)
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    AndroidView(
-        factory = { previewView },
-        modifier = Modifier.fillMaxSize()
-    )
+    AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
 }
 
 @Composable
@@ -170,12 +176,15 @@ private fun IdleOverlay(
     selectedFilter: PhotoFilter,
     onFilterSelected: (PhotoFilter) -> Unit,
     onStart: () -> Unit,
-    onSwitchCamera: () -> Unit,
+    cameras: List<CameraType>,
+    selectedCameraIndex: Int,
+    onSelectCamera: (Int) -> Unit,
     onBack: () -> Unit,
-    layout: String,
+    layoutLabel: String,
     photoCount: Int
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
+
         // Top bar
         Row(
             modifier = Modifier
@@ -188,27 +197,35 @@ private fun IdleOverlay(
             IconButton(
                 onClick = onBack,
                 modifier = Modifier
-                    .background(Color.Black.copy(0.5f), CircleShape)
+                    .background(Color.Black.copy(0.55f), CircleShape)
                     .size(48.dp)
             ) {
                 Icon(Icons.Default.ArrowBack, "Zurück", tint = Color.White)
             }
 
             Text(
-                text = "$layout · $photoCount Fotos",
+                text = "$layoutLabel · $photoCount Fotos",
                 style = MaterialTheme.typography.labelLarge.copy(color = Color.White),
                 modifier = Modifier
-                    .background(Color.Black.copy(0.5f), RoundedCornerShape(16.dp))
+                    .background(Color.Black.copy(0.55f), RoundedCornerShape(16.dp))
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             )
 
-            IconButton(
-                onClick = onSwitchCamera,
-                modifier = Modifier
-                    .background(Color.Black.copy(0.5f), CircleShape)
-                    .size(48.dp)
-            ) {
-                Icon(Icons.Default.Cameraswitch, "Kamera wechseln", tint = Color.White)
+            // Kamera-Auswahl (zeigt USB-Kamera zuerst)
+            if (cameras.size > 1) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    itemsIndexed(cameras) { i, cam ->
+                        CameraChip(
+                            type = cam,
+                            isSelected = i == selectedCameraIndex,
+                            onClick = { onSelectCamera(i) }
+                        )
+                    }
+                }
+            } else {
+                cameras.firstOrNull()?.let {
+                    CameraChip(type = it, isSelected = true, onClick = {})
+                }
             }
         }
 
@@ -220,6 +237,7 @@ private fun IdleOverlay(
                 .padding(bottom = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Filter-Auswahl
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -235,6 +253,7 @@ private fun IdleOverlay(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Auslöser
             Box(
                 modifier = Modifier
                     .size(88.dp)
@@ -255,7 +274,7 @@ private fun IdleOverlay(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Tippen zum Starten",
+                "Tippen zum Starten",
                 style = MaterialTheme.typography.bodyLarge.copy(
                     color = Color.White,
                     fontWeight = FontWeight.Medium
@@ -266,19 +285,41 @@ private fun IdleOverlay(
 }
 
 @Composable
-private fun FilterChip(filter: PhotoFilter, isSelected: Boolean, onClick: () -> Unit) {
-    val bg = if (isSelected) MaterialTheme.colorScheme.primary else Color.Black.copy(0.5f)
-    Box(
+private fun CameraChip(type: CameraType, isSelected: Boolean, onClick: () -> Unit) {
+    val icon: ImageVector = when (type) {
+        CameraType.USB -> Icons.Default.Usb
+        CameraType.FRONT -> Icons.Default.FrontHand
+        CameraType.BACK -> Icons.Default.PhoneAndroid
+        CameraType.UNKNOWN -> Icons.Default.CameraAlt
+    }
+    val bg = if (isSelected) MaterialTheme.colorScheme.primary else Color.Black.copy(0.55f)
+
+    Row(
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
             .background(bg)
             .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(icon, null, tint = Color.White, modifier = Modifier.size(16.dp))
+        Text(type.label, style = MaterialTheme.typography.labelLarge.copy(color = Color.White))
+    }
+}
+
+@Composable
+private fun FilterChip(filter: PhotoFilter, isSelected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                if (isSelected) MaterialTheme.colorScheme.primary else Color.Black.copy(0.55f)
+            )
+            .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
-        Text(
-            text = filter.label,
-            style = MaterialTheme.typography.labelLarge.copy(color = Color.White)
-        )
+        Text(filter.label, style = MaterialTheme.typography.labelLarge.copy(color = Color.White))
     }
 }
 
@@ -315,10 +356,7 @@ private fun ErrorOverlay(message: String, onRetry: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                "Fehler",
-                style = MaterialTheme.typography.headlineLarge.copy(color = Color.Red)
-            )
+            Text("Fehler", style = MaterialTheme.typography.headlineLarge.copy(color = Color.Red))
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 message,
@@ -342,7 +380,9 @@ private fun ErrorOverlay(message: String, onRetry: () -> Unit) {
 @Composable
 private fun PermissionDeniedScreen(onBack: () -> Unit) {
     Box(
-        modifier = Modifier.fillMaxSize().background(Color.Black),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {

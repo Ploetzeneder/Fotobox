@@ -2,7 +2,7 @@ package com.fotobox.app.ui.screens
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,9 +18,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -41,6 +43,7 @@ import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.fotobox.app.ui.viewmodels.PhotoReviewViewModel
+import com.fotobox.app.utils.printStrip
 import java.io.File
 
 @Composable
@@ -76,13 +79,13 @@ fun PhotoReviewScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Strip preview
+            // Fotostreifen-Vorschau
             uiState.stripPath?.let { path ->
                 AsyncImage(
                     model = path,
                     contentDescription = "Fotostreifen",
                     modifier = Modifier
-                        .fillMaxWidth(0.5f)
+                        .fillMaxWidth(0.45f)
                         .clip(RoundedCornerShape(12.dp)),
                     contentScale = ContentScale.Fit
                 )
@@ -90,7 +93,7 @@ fun PhotoReviewScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Individual photos row
+            // Einzelfotos
             if (uiState.photos.isNotEmpty()) {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(uiState.photos) { photo ->
@@ -98,7 +101,7 @@ fun PhotoReviewScreen(
                             model = photo.filePath,
                             contentDescription = null,
                             modifier = Modifier
-                                .size(120.dp)
+                                .size(110.dp)
                                 .clip(RoundedCornerShape(8.dp)),
                             contentScale = ContentScale.Crop
                         )
@@ -108,28 +111,48 @@ fun PhotoReviewScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
+            // Aktions-Buttons
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedButton(
                     onClick = onRetake,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(Icons.Default.Refresh, null)
-                    Spacer(modifier = Modifier.size(8.dp))
-                    Text("Neu aufnehmen")
+                    Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.size(6.dp))
+                    Text("Neu")
                 }
 
                 Button(
                     onClick = {
-                        uiState.stripPath?.let { sharePhoto(context, it, sessionId) }
+                        uiState.stripPath?.let { sharePhoto(context, it) }
                     },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(Icons.Default.Share, null)
-                    Spacer(modifier = Modifier.size(8.dp))
+                    Icon(Icons.Default.Share, null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.size(6.dp))
                     Text("Teilen")
+                }
+
+                // Drucken — Canon Selphy 1500 erscheint automatisch im Dialog
+                Button(
+                    onClick = {
+                        uiState.stripPath?.let { path ->
+                            (context as? ComponentActivity)?.let { activity ->
+                                printStrip(activity, path)
+                            }
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    Icon(Icons.Default.Print, null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.size(6.dp))
+                    Text("Drucken")
                 }
 
                 Button(
@@ -139,18 +162,28 @@ fun PhotoReviewScreen(
                     Text("Fertig")
                 }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                "Drucken: Canon Selphy im gleichen WLAN → erscheint automatisch\n" +
+                        "Zum Testen: \"Als PDF speichern\" wählen",
+                style = MaterialTheme.typography.labelLarge.copy(
+                    color = Color.White.copy(alpha = 0.4f)
+                ),
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
         }
     }
 }
 
-private fun sharePhoto(context: Context, path: String, sessionId: Long) {
+private fun sharePhoto(context: Context, path: String) {
     val file = File(path)
     if (!file.exists()) return
     val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-    val intent = Intent(Intent.ACTION_SEND).apply {
+    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
         type = "image/jpeg"
         putExtra(Intent.EXTRA_STREAM, uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
-    context.startActivity(Intent.createChooser(intent, "Foto teilen"))
+    }, "Foto teilen"))
 }

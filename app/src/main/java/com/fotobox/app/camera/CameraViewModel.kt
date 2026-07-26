@@ -3,11 +3,10 @@ package com.fotobox.app.camera
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Matrix
+import androidx.camera.core.CameraInfo
+import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
-import androidx.camera.core.ImageProxy
-import androidx.camera.view.CameraController
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fotobox.app.data.models.Photo
@@ -25,6 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.inject.Inject
 
 sealed class CameraState {
@@ -38,13 +38,29 @@ sealed class CameraState {
     data class Error(val message: String) : CameraState()
 }
 
+enum class CameraType(val label: String) {
+    USB("USB-Kamera"),
+    FRONT("Frontkamera"),
+    BACK("Rückkamera"),
+    UNKNOWN("Kamera")
+}
+
+data class CameraOption(
+    val index: Int,
+    val type: CameraType,
+    val cameraInfo: CameraInfo
+)
+
 data class CameraUiState(
     val state: CameraState = CameraState.Idle,
     val selectedFilter: PhotoFilter = PhotoFilter.NONE,
     val selectedLayout: StripLayout = StripLayout.STRIP_4,
-    val useFrontCamera: Boolean = false,
+    val cameras: List<CameraOption> = emptyList(),
+    val selectedCameraIndex: Int = 0,
     val capturedCount: Int = 0
-)
+) {
+    val selectedCamera: CameraOption? get() = cameras.getOrNull(selectedCameraIndex)
+}
 
 @HiltViewModel
 class CameraViewModel @Inject constructor(
@@ -72,11 +88,28 @@ class CameraViewModel @Inject constructor(
         imageCapture = capture
     }
 
+    fun setAvailableCameras(cameraInfos: List<CameraInfo>) {
+        val options = cameraInfos.mapIndexed { i, info ->
+            val type = when (info.lensFacing) {
+                CameraSelector.LENS_FACING_EXTERNAL -> CameraType.USB
+                CameraSelector.LENS_FACING_FRONT -> CameraType.FRONT
+                CameraSelector.LENS_FACING_BACK -> CameraType.BACK
+                else -> CameraType.UNKNOWN
+            }
+            CameraOption(i, type, info)
+        }
+        // USB-Kamera bevorzugen wenn verfügbar
+        val bestIndex = options.indexOfFirst { it.type == CameraType.USB }
+            .let { if (it >= 0) it else 0 }
+
+        _uiState.update { it.copy(cameras = options, selectedCameraIndex = bestIndex) }
+    }
+
+    fun selectCamera(index: Int) = _uiState.update { it.copy(selectedCameraIndex = index) }
+
     fun selectFilter(filter: PhotoFilter) = _uiState.update { it.copy(selectedFilter = filter) }
 
     fun selectLayout(layout: StripLayout) = _uiState.update { it.copy(selectedLayout = layout) }
-
-    fun toggleCamera() = _uiState.update { it.copy(useFrontCamera = !it.useFrontCamera) }
 
     fun startSession() {
         if (_uiState.value.state !is CameraState.Idle) return
@@ -98,7 +131,7 @@ class CameraViewModel @Inject constructor(
                 capturePhoto()
 
                 _uiState.update { it.copy(state = CameraState.FlashEffect) }
-                delay(200L)
+                delay(220L)
 
                 if (index < photoCount - 1) {
                     _uiState.update {
@@ -117,33 +150,23 @@ class CameraViewModel @Inject constructor(
 
     private suspend fun capturePhoto() {
         val capture = imageCapture ?: return
-        val capturedBitmap = kotlinx.coroutines.suspendCancellableCoroutine<Bitmap?> { cont ->
+        val tempFile = createTempFile(context)
+
+        val bitmap = suspendCancellableCoroutine<Bitmap?> { cont ->
             capture.takePicture(
-                androidx.camera.core.ImageCapture.OutputFileOptions.Builder(
-                    createTempFile(context)
-                ).build(),
+                ImageCapture.OutputFileOptions.Builder(tempFile).build(),
                 context.mainExecutor,
                 object : ImageCapture.OnImageSavedCallback {
                     override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                        val uri = output.savedUri ?: return cont.resume(null) {}
-                        val bitmap = BitmapFactory.decodeStream(
-                            context.contentResolver.openInputStream(uri)
-                        )
-                        // Mirror front camera horizontally
-                        val finalBitmap = if (_uiState.value.useFrontCamera && bitmap != null) {
-                            val matrix = Matrix().apply { preScale(-1f, 1f) }
-                            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, false)
-                        } else bitmap
-                        cont.resume(finalBitmap) {}
+                        cont.resume(BitmapFactory.decodeFile(tempFile.absolutePath)) {}
                     }
-
-                    override fun onError(exception: ImageCaptureException) {
+                    override fun onError(e: ImageCaptureException) {
                         cont.resume(null) {}
                     }
                 }
             )
         }
-        capturedBitmap?.let { capturedBitmaps.add(it) }
+        bitmap?.let { capturedBitmaps.add(it) }
     }
 
     private suspend fun buildStrip() {
@@ -159,12 +182,14 @@ class CameraViewModel @Inject constructor(
         val filter = _uiState.value.selectedFilter
 
         val filteredBitmaps = capturedBitmaps.mapIndexed { i, bmp ->
-            _uiState.update { it.copy(state = CameraState.Processing((i + 1f) / capturedBitmaps.size * 0.7f)) }
+            _uiState.update {
+                it.copy(state = CameraState.Processing((i + 1f) / capturedBitmaps.size * 0.7f))
+            }
             FilterProcessor.applyFilter(bmp, filter)
         }
 
         val photos = filteredBitmaps.mapIndexed { i, bmp ->
-            val path = BitmapUtils.saveBitmap(context, bmp, "photo_${sessionId}")
+            val path = BitmapUtils.saveBitmap(context, bmp, "photo_$sessionId")
             Photo(sessionId = sessionId, filePath = path, filter = filter, orderIndex = i)
         }
         repository.savePhotos(photos)
@@ -176,7 +201,7 @@ class CameraViewModel @Inject constructor(
             _uiState.value.selectedLayout,
             eventName = settings.eventName
         )
-        val stripPath = BitmapUtils.saveBitmap(context, strip, "strip_${sessionId}")
+        val stripPath = BitmapUtils.saveBitmap(context, strip, "strip_$sessionId")
         repository.updateStripPath(sessionId, stripPath)
 
         _uiState.update { it.copy(state = CameraState.Done(sessionId)) }
