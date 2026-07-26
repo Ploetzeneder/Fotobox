@@ -194,8 +194,17 @@ class CameraViewModel @Inject constructor(
     }
 
     private suspend fun buildStrip() {
+        val requiredCount = _uiState.value.selectedLayout.photoCount
         if (capturedBitmaps.isEmpty()) {
             _uiState.update { it.copy(state = CameraState.Error("Keine Fotos aufgenommen")) }
+            return
+        }
+        if (capturedBitmaps.size < requiredCount) {
+            _uiState.update {
+                it.copy(state = CameraState.Error(
+                    "Nur ${capturedBitmaps.size} von $requiredCount Fotos aufgenommen — bitte erneut versuchen"
+                ))
+            }
             return
         }
 
@@ -256,8 +265,15 @@ class CameraViewModel @Inject constructor(
     }
 
     fun resetToIdle() {
+        capturedBitmaps.filter { !it.isRecycled }.forEach { it.recycle() }
         capturedBitmaps.clear()
         _uiState.update { it.copy(state = CameraState.Idle, capturedCount = 0) }
+    }
+
+    override fun onCleared() {
+        capturedBitmaps.filter { !it.isRecycled }.forEach { it.recycle() }
+        capturedBitmaps.clear()
+        super.onCleared()
     }
 
     private fun createTempFile(context: Context): java.io.File {

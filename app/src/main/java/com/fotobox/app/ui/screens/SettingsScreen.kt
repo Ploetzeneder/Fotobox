@@ -52,6 +52,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import com.fotobox.app.data.models.CountdownDuration
 import com.fotobox.app.data.models.PhotoFilter
 import com.fotobox.app.data.models.StripBackground
@@ -170,10 +173,10 @@ fun SettingsScreen(
 
             // Strip Layout
             SettingsSection("Foto-Layout") {
-                SegmentedPicker(
-                    options = StripLayout.entries.map { "${it.icon} ${it.label}" },
-                    selectedIndex = StripLayout.entries.indexOf(settings.stripLayout),
-                    onSelect = { viewModel.updateLayout(StripLayout.entries[it]) }
+                LayoutPicker(
+                    layouts = StripLayout.entries,
+                    selected = settings.stripLayout,
+                    onSelect = { viewModel.updateLayout(it) }
                 )
             }
 
@@ -489,6 +492,68 @@ private fun SegmentedPicker(
                     ),
                     maxLines = 1
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LayoutPicker(
+    layouts: List<StripLayout>,
+    selected: StripLayout,
+    onSelect: (StripLayout) -> Unit
+) {
+    // LazyVerticalGrid needs a fixed height when inside a verticalScroll parent
+    val rows = (layouts.size + 2) / 3
+    val itemHeight = 64.dp
+    val gridHeight = itemHeight * rows + 4.dp * (rows - 1)
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(3),
+        modifier = Modifier.height(gridHeight),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        userScrollEnabled = false
+    ) {
+        items(layouts) { layout ->
+            val isSelected = layout == selected
+            Box(
+                modifier = Modifier
+                    .height(itemHeight)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        if (isSelected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.surface
+                    )
+                    .then(
+                        if (isSelected) Modifier else Modifier.border(
+                            1.dp, MaterialTheme.colorScheme.outline.copy(0.3f), RoundedCornerShape(8.dp)
+                        )
+                    )
+                    .clickable { onSelect(layout) }
+                    .padding(horizontal = 4.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        layout.icon,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                    else MaterialTheme.colorScheme.onSurface
+                        )
+                    )
+                    Text(
+                        layout.label,
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = androidx.compose.ui.unit.TextUnit(
+                                9f, androidx.compose.ui.unit.TextUnitType.Sp
+                            )
+                        ),
+                        textAlign = TextAlign.Center,
+                        maxLines = 2
+                    )
+                }
             }
         }
     }

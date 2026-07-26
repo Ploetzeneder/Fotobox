@@ -71,7 +71,7 @@ fun PhotoReviewScreen(
     val context = LocalContext.current
     var showQr by remember { mutableStateOf(false) }
     var autoPrintDone by remember { mutableStateOf(false) }
-    var secondsLeft by remember { mutableIntStateOf(0) }
+    var secondsLeft by remember { mutableIntStateOf(uiState.autoReturnDelay) }
 
     LaunchedEffect(sessionId) {
         viewModel.loadSession(sessionId)
@@ -143,7 +143,8 @@ fun PhotoReviewScreen(
                             contentDescription = null,
                             modifier = Modifier
                                 .size(100.dp)
-                                .clip(RoundedCornerShape(8.dp)),
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { ShareUtils.sharePhoto(context, photo.filePath) },
                             contentScale = ContentScale.Crop
                         )
                     }
