@@ -167,7 +167,7 @@ fun GalleryScreen(
                 onPrint = {
                     session.stripFilePath?.let { path ->
                         (context as? ComponentActivity)?.let { act ->
-                            printStrip(act, path)
+                            printStrip(act, path, viewModel.printCopies)
                             viewModel.recordPrint(session)
                         }
                     }

@@ -108,11 +108,15 @@ class CameraViewModel @Inject constructor(
             }
             CameraOption(i, type, info)
         }
-        // USB-Kamera bevorzugen wenn verfügbar
-        val bestIndex = options.indexOfFirst { it.type == CameraType.USB }
-            .let { if (it >= 0) it else 0 }
-
-        _uiState.update { it.copy(cameras = options, selectedCameraIndex = bestIndex) }
+        _uiState.update { current ->
+            // Only auto-select best camera on first detection; preserve user choice afterwards
+            val bestIndex = if (current.cameras.isEmpty()) {
+                options.indexOfFirst { it.type == CameraType.USB }.let { if (it >= 0) it else 0 }
+            } else {
+                current.selectedCameraIndex.coerceIn(0, (options.size - 1).coerceAtLeast(0))
+            }
+            current.copy(cameras = options, selectedCameraIndex = bestIndex)
+        }
     }
 
     fun selectCamera(index: Int) = _uiState.update { it.copy(selectedCameraIndex = index) }
@@ -180,7 +184,9 @@ class CameraViewModel @Inject constructor(
         }
         if (!saved) return
         val bitmap = withContext(Dispatchers.IO) {
-            BitmapUtils.loadBitmapExifCorrected(tempFile.absolutePath)
+            val bmp = BitmapUtils.loadBitmapExifCorrected(tempFile.absolutePath)
+            tempFile.delete()
+            bmp
         }
         bitmap?.let { capturedBitmaps.add(it) }
     }
@@ -206,7 +212,6 @@ class CameraViewModel @Inject constructor(
                 FilterProcessor.applyFilter(bmp, filter)
             }
         }
-
         val photos = withContext(Dispatchers.IO) {
             filteredBitmaps.mapIndexed { i, bmp ->
                 val path = BitmapUtils.saveBitmap(context, bmp, "photo_$sessionId")
@@ -228,6 +233,10 @@ class CameraViewModel @Inject constructor(
         val stripPath = withContext(Dispatchers.IO) {
             BitmapUtils.saveBitmap(context, strip, "strip_$sessionId")
         }
+        strip.recycle()
+        filteredBitmaps.forEach { it.recycle() }
+        capturedBitmaps.filter { !it.isRecycled }.forEach { it.recycle() }
+        capturedBitmaps.clear()
         repository.updateStripPath(sessionId, stripPath)
 
         _uiState.update { it.copy(state = CameraState.Done(sessionId)) }

@@ -38,7 +38,10 @@ object BitmapUtils {
                 else -> 0f
             }
         } catch (_: Exception) { 0f }
-        return rotateBitmap(raw, degrees)
+        if (degrees == 0f) return raw
+        val rotated = rotateBitmap(raw, degrees)
+        raw.recycle()
+        return rotated
     }
 
     fun loadBitmapSampled(path: String, maxWidth: Int, maxHeight: Int): Bitmap? {

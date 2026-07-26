@@ -9,6 +9,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -42,9 +43,9 @@ class ConnectViewModel @Inject constructor(
         )
     }
 
-    fun setUrl(v: String) = _state.value.let { _state.value = it.copy(apiUrl = v) }
-    fun setEmail(v: String) = _state.value.let { _state.value = it.copy(email = v) }
-    fun setPassword(v: String) = _state.value.let { _state.value = it.copy(password = v) }
+    fun setUrl(v: String) = _state.update { it.copy(apiUrl = v) }
+    fun setEmail(v: String) = _state.update { it.copy(email = v) }
+    fun setPassword(v: String) = _state.update { it.copy(password = v) }
 
     fun connect() {
         val s = _state.value

@@ -19,6 +19,8 @@ class GalleryViewModel @Inject constructor(
     val sessions: StateFlow<List<PhotoSession>> = repository.getAllSessions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val printCopies: Int get() = repository.loadSettings().printCopies.coerceAtLeast(1)
+
     fun deleteSession(session: PhotoSession) {
         viewModelScope.launch { repository.deleteSession(session) }
     }

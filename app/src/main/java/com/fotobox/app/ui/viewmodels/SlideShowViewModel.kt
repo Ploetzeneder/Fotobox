@@ -35,10 +35,13 @@ class SlideShowViewModel @Inject constructor(
 
     private var imagePaths = listOf<String>()
     private var running = false
+    private var started = false
 
     fun start() {
         val settings = repository.loadSettings()
         _eventName.value = settings.eventName
+        if (started) return
+        started = true
 
         // Live updates: when new sessions arrive the slideshow picks them up
         repository.getAllSessions()
