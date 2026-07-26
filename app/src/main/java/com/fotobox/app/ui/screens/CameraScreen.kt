@@ -44,6 +44,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.core.content.ContextCompat
+import kotlinx.coroutines.suspendCancellableCoroutine
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -148,7 +150,10 @@ private fun CameraPreview(
     val previewView = remember { PreviewView(context) }
 
     LaunchedEffect(cameraSelector) {
-        val cameraProvider = ProcessCameraProvider.getInstance(context).get()
+        val future = ProcessCameraProvider.getInstance(context)
+        val cameraProvider = suspendCancellableCoroutine<ProcessCameraProvider> { cont ->
+            future.addListener({ cont.resume(future.get()) {} }, ContextCompat.getMainExecutor(context))
+        }
 
         // Alle verfügbaren Kameras melden (USB + eingebaut)
         onCamerasDetected(cameraProvider.availableCameraInfos)
