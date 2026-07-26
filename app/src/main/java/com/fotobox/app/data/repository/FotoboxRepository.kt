@@ -61,6 +61,11 @@ class FotoboxRepository @Inject constructor(
         return java.io.File(dir, "voice_${System.currentTimeMillis()}.m4a")
     }
 
+    fun greetingFile(): java.io.File {
+        val dir = java.io.File(context.filesDir, "audio").apply { mkdirs() }
+        return java.io.File(dir, "greeting.m4a")
+    }
+
     // Settings
     fun loadSettings(): FotoboxSettings = FotoboxSettings(
         countdownDuration = CountdownDuration.valueOf(

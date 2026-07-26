@@ -1,6 +1,7 @@
 package com.fotobox.app.ui.screens
 
 import android.Manifest
+import android.content.Context
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.Build
@@ -30,9 +31,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -43,7 +47,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +65,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fotobox.app.data.models.AudioRecording
 import com.fotobox.app.ui.viewmodels.AudioGuestbookViewModel
+import com.fotobox.app.ui.viewmodels.MicStatus
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -72,56 +76,98 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private fun makeRecorder(context: Context): MediaRecorder =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(context)
+    else @Suppress("DEPRECATION") MediaRecorder()
+
+private fun MediaRecorder.prepareAudio(outputFile: File, maxDurationMs: Int = 0) {
+    setAudioSource(MediaRecorder.AudioSource.MIC)
+    setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+    setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+    setAudioEncodingBitRate(128000)
+    setAudioSamplingRate(44100)
+    if (maxDurationMs > 0) setMaxDuration(maxDurationMs)
+    setOutputFile(outputFile.absolutePath)
+    prepare()
+    start()
+}
+
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun AudioGuestbookScreen(
     onBack: () -> Unit,
     viewModel: AudioGuestbookViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val micPermission = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
     val recordings by viewModel.recordings.collectAsState()
-    val context = LocalContext.current
+    val hasGreeting by viewModel.hasGreeting.collectAsState()
+    val micStatus by viewModel.micStatus.collectAsState()
     val scope = rememberCoroutineScope()
 
+    val MAX_SECONDS = 60L
+
+    // Guest recording state
     var isRecording by remember { mutableStateOf(false) }
     var isPreviewing by remember { mutableStateOf(false) }
     var recordingSeconds by remember { mutableLongStateOf(0L) }
     var previewFile by remember { mutableStateOf<File?>(null) }
-
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
 
-    val MAX_SECONDS = 60L
+    // Greeting state
+    var isGreetingPlaying by remember { mutableStateOf(false) }
+    var isRecordingGreeting by remember { mutableStateOf(false) }
+    var greetingRecordingSeconds by remember { mutableLongStateOf(0L) }
+    var greetingPreviewFile by remember { mutableStateOf<File?>(null) }
+    var greetingRecorder by remember { mutableStateOf<MediaRecorder?>(null) }
+    var greetingPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
 
     DisposableEffect(Unit) {
         onDispose {
-            recorder?.apply { stop(); release() }
-            player?.apply { stop(); release() }
+            recorder?.apply { try { stop() } catch (_: Exception) {}; release() }
+            player?.apply { try { stop() } catch (_: Exception) {}; release() }
+            greetingRecorder?.apply { try { stop() } catch (_: Exception) {}; release() }
+            greetingPlayer?.apply { try { stop() } catch (_: Exception) {}; release() }
         }
     }
 
     LaunchedEffect(Unit) {
         if (!micPermission.status.isGranted) micPermission.launchPermissionRequest()
+        val gFile = viewModel.greetingFile()
+        if (gFile.exists()) {
+            try {
+                val p = MediaPlayer().apply {
+                    setDataSource(gFile.absolutePath)
+                    prepare()
+                    start()
+                    setOnCompletionListener { isGreetingPlaying = false }
+                }
+                greetingPlayer = p
+                isGreetingPlaying = true
+            } catch (_: Exception) {}
+        }
     }
 
-    val pulseAnim = rememberInfiniteTransition(label = "mic_pulse")
+    val pulseAnim = rememberInfiniteTransition(label = "pulse")
     val pulseScale by pulseAnim.animateFloat(
         initialValue = 1f, targetValue = 1.15f,
         animationSpec = infiniteRepeatable(tween(500), RepeatMode.Reverse),
-        label = "pulse"
+        label = "scale"
     )
     val micBg by animateColorAsState(
         targetValue = if (isRecording) Color(0xFFE91E1E) else MaterialTheme.colorScheme.primary,
-        animationSpec = tween(300),
-        label = "mic_color"
+        animationSpec = tween(300), label = "mic_color"
+    )
+    val greetingMicBg by animateColorAsState(
+        targetValue = if (isRecordingGreeting) Color(0xFFE91E1E) else Color(0xFFF59E0B),
+        animationSpec = tween(300), label = "greeting_color"
     )
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(listOf(Color(0xFF0A0A1A), Color(0xFF1A0A1A)))
-            )
+            .background(Brush.verticalGradient(listOf(Color(0xFF0A0A1A), Color(0xFF1A0A1A))))
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
 
@@ -137,199 +183,163 @@ fun AudioGuestbookScreen(
                     )
                 )
                 Spacer(modifier = Modifier.weight(1f))
+                MicStatusBadge(micStatus)
+                Spacer(modifier = Modifier.size(8.dp))
                 Text(
-                    "${recordings.size} Nachrichten",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        color = Color.White.copy(0.5f)
-                    )
+                    "${recordings.size}",
+                    style = MaterialTheme.typography.labelLarge.copy(color = Color.White.copy(0.5f))
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // Recording UI
-            if (micPermission.status.isGranted) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(Color.White.copy(0.07f))
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    if (isRecording) {
-                        Text(
-                            "$recordingSeconds / $MAX_SECONDS Sek.",
-                            style = MaterialTheme.typography.titleLarge.copy(color = Color.White),
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        )
-                        LinearProgressIndicator(
-                            progress = { recordingSeconds / MAX_SECONDS.toFloat() },
-                            modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
-                            color = Color(0xFFE91E1E),
-                            trackColor = Color.White.copy(0.2f)
-                        )
-                        Spacer(modifier = Modifier.height(20.dp))
-                    } else if (previewFile != null) {
-                        Text(
-                            "Nachricht aufgenommen ✓",
-                            style = MaterialTheme.typography.titleLarge.copy(color = Color(0xFF4CAF50))
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
+            // Host Greeting Section
+            GreetingSection(
+                hasGreeting = hasGreeting,
+                isPlaying = isGreetingPlaying,
+                isRecording = isRecordingGreeting,
+                recordingSeconds = greetingRecordingSeconds,
+                previewFile = greetingPreviewFile,
+                maxSeconds = MAX_SECONDS,
+                micBg = greetingMicBg,
+                pulseScale = if (isRecordingGreeting) pulseScale else 1f,
+                onTogglePlay = {
+                    if (isGreetingPlaying) {
+                        greetingPlayer?.apply { try { stop() } catch (_: Exception) {}; release() }
+                        greetingPlayer = null
+                        isGreetingPlaying = false
                     } else {
-                        Text(
-                            "Halte den Knopf um aufzunehmen",
-                            style = MaterialTheme.typography.bodyLarge.copy(color = Color.White.copy(0.6f))
-                        )
-                        Spacer(modifier = Modifier.height(20.dp))
+                        val gFile = viewModel.greetingFile()
+                        if (gFile.exists()) {
+                            try {
+                                val p = MediaPlayer().apply {
+                                    setDataSource(gFile.absolutePath)
+                                    prepare()
+                                    start()
+                                    setOnCompletionListener { isGreetingPlaying = false }
+                                }
+                                greetingPlayer = p
+                                isGreetingPlaying = true
+                            } catch (_: Exception) {}
+                        }
                     }
+                },
+                onStartRecord = {
+                    if (micPermission.status.isGranted) {
+                        val file = viewModel.newAudioFile()
+                        greetingPreviewFile = file
+                        val rec = makeRecorder(context).apply { prepareAudio(file) }
+                        greetingRecorder = rec
+                        isRecordingGreeting = true
+                        scope.launch {
+                            while (isRecordingGreeting && greetingRecordingSeconds < MAX_SECONDS) {
+                                delay(1000)
+                                if (isRecordingGreeting) greetingRecordingSeconds++
+                            }
+                            if (isRecordingGreeting) {
+                                try { greetingRecorder?.apply { stop(); release() } } catch (_: Exception) {}
+                                greetingRecorder = null
+                                isRecordingGreeting = false
+                                greetingRecordingSeconds = 0
+                            }
+                        }
+                    }
+                },
+                onStopRecord = {
+                    try { greetingRecorder?.apply { stop(); release() } } catch (_: Exception) {}
+                    greetingRecorder = null
+                    isRecordingGreeting = false
+                    greetingRecordingSeconds = 0
+                },
+                onSave = {
+                    greetingPreviewFile?.let { viewModel.saveGreeting(it) }
+                    greetingPreviewFile = null
+                },
+                onDiscard = {
+                    greetingPreviewFile?.delete()
+                    greetingPreviewFile = null
+                },
+                onDelete = { viewModel.deleteGreeting() }
+            )
 
-                    // Mikrofon-Button
-                    Box(
-                        modifier = Modifier
-                            .scale(if (isRecording) pulseScale else 1f)
-                            .size(100.dp)
-                            .clip(CircleShape)
-                            .background(micBg)
-                            .clickable {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Guest Recording Section
+            if (micPermission.status.isGranted) {
+                GuestRecordingSection(
+                    isBlocked = isGreetingPlaying || isRecordingGreeting,
+                    isRecording = isRecording,
+                    isPreviewing = isPreviewing,
+                    recordingSeconds = recordingSeconds,
+                    previewFile = previewFile,
+                    maxSeconds = MAX_SECONDS,
+                    micBg = micBg,
+                    pulseScale = if (isRecording) pulseScale else 1f,
+                    onToggleMic = {
+                        if (isRecording) {
+                            try { recorder?.apply { stop(); release() } } catch (_: Exception) {}
+                            recorder = null
+                            isRecording = false
+                            recordingSeconds = 0
+                            isPreviewing = true
+                        } else if (previewFile == null) {
+                            val file = viewModel.newAudioFile()
+                            previewFile = file
+                            val rec = makeRecorder(context).apply {
+                                prepareAudio(file, MAX_SECONDS.toInt() * 1000)
+                            }
+                            recorder = rec
+                            isRecording = true
+                            scope.launch {
+                                while (isRecording && recordingSeconds < MAX_SECONDS) {
+                                    delay(1000)
+                                    if (isRecording) recordingSeconds++
+                                }
                                 if (isRecording) {
-                                    // Stop recording
-                                    try {
-                                        recorder?.apply { stop(); release() }
-                                    } catch (_: Exception) {}
+                                    try { recorder?.apply { stop(); release() } } catch (_: Exception) {}
                                     recorder = null
                                     isRecording = false
                                     recordingSeconds = 0
                                     isPreviewing = true
-                                } else if (previewFile == null) {
-                                    // Start recording
-                                    if (!micPermission.status.isGranted) return@clickable
-                                    val file = viewModel.newAudioFile()
-                                    previewFile = file
-                                    val rec = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-                                        MediaRecorder(context)
-                                    else
-                                        @Suppress("DEPRECATION") MediaRecorder()
-                                    rec.apply {
-                                        setAudioSource(MediaRecorder.AudioSource.MIC)
-                                        setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                                        setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                                        setAudioEncodingBitRate(128000)
-                                        setAudioSamplingRate(44100)
-                                        setMaxDuration(MAX_SECONDS.toInt() * 1000)
-                                        setOutputFile(file.absolutePath)
-                                        prepare()
-                                        start()
-                                    }
-                                    recorder = rec
-                                    isRecording = true
-                                    scope.launch {
-                                        while (isRecording && recordingSeconds < MAX_SECONDS) {
-                                            delay(1000)
-                                            if (isRecording) recordingSeconds++
-                                        }
-                                        if (isRecording) {
-                                            // Auto-stop at 60s
-                                            try { recorder?.apply { stop(); release() } } catch (_: Exception) {}
-                                            recorder = null
-                                            isRecording = false
-                                            recordingSeconds = 0
-                                            isPreviewing = true
-                                        }
-                                    }
                                 }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            if (isRecording) Icons.Default.Stop else Icons.Default.Mic,
-                            null,
-                            tint = Color.White,
-                            modifier = Modifier.size(44.dp)
-                        )
-                    }
-
-                    // Preview + Save actions
-                    if (previewFile != null && !isRecording) {
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            // Anhören
-                            IconButton(
-                                onClick = {
-                                    if (isPreviewing) {
-                                        player?.apply { stop(); release() }
-                                        player = null
-                                        isPreviewing = false
-                                    }
-                                    val p = MediaPlayer().apply {
-                                        setDataSource(previewFile!!.absolutePath)
-                                        prepare()
-                                        start()
-                                        setOnCompletionListener { isPreviewing = false }
-                                    }
-                                    player = p
-                                    isPreviewing = true
-                                },
-                                modifier = Modifier
-                                    .background(Color.White.copy(0.1f), CircleShape)
-                                    .size(52.dp)
-                            ) {
-                                Icon(
-                                    if (isPreviewing) Icons.Default.Stop else Icons.Default.PlayArrow,
-                                    "Anhören", tint = Color.White
-                                )
-                            }
-
-                            // Speichern
-                            IconButton(
-                                onClick = {
-                                    previewFile?.let { file ->
-                                        viewModel.saveRecording(file, recordingSeconds * 1000)
-                                    }
-                                    previewFile = null
-                                    isPreviewing = false
-                                    player?.apply { stop(); release() }
-                                    player = null
-                                },
-                                modifier = Modifier
-                                    .background(MaterialTheme.colorScheme.primary, CircleShape)
-                                    .size(52.dp)
-                            ) {
-                                Icon(Icons.Default.Save, "Speichern", tint = Color.White)
-                            }
-
-                            // Verwerfen
-                            IconButton(
-                                onClick = {
-                                    previewFile?.delete()
-                                    previewFile = null
-                                    isPreviewing = false
-                                    player?.apply { stop(); release() }
-                                    player = null
-                                },
-                                modifier = Modifier
-                                    .background(Color(0xFF4A1010), CircleShape)
-                                    .size(52.dp)
-                            ) {
-                                Icon(Icons.Default.Delete, "Verwerfen", tint = Color.White)
                             }
                         }
-
-                        Row(modifier = Modifier.padding(top = 8.dp)) {
-                            Text(
-                                "▶ Anhören   💾 Speichern   🗑 Verwerfen",
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    color = Color.White.copy(0.4f), fontSize = 11.sp
-                                )
-                            )
+                    },
+                    onPreviewPlay = {
+                        if (isPreviewing) {
+                            player?.apply { try { stop() } catch (_: Exception) {}; release() }
+                            player = null
+                            isPreviewing = false
+                        } else {
+                            val p = MediaPlayer().apply {
+                                setDataSource(previewFile!!.absolutePath)
+                                prepare()
+                                start()
+                                setOnCompletionListener { isPreviewing = false }
+                            }
+                            player = p
+                            isPreviewing = true
                         }
+                    },
+                    onSave = {
+                        previewFile?.let { viewModel.saveRecording(it, recordingSeconds * 1000) }
+                        previewFile = null
+                        isPreviewing = false
+                        player?.apply { try { stop() } catch (_: Exception) {}; release() }
+                        player = null
+                    },
+                    onDiscard = {
+                        previewFile?.delete()
+                        previewFile = null
+                        isPreviewing = false
+                        player?.apply { try { stop() } catch (_: Exception) {}; release() }
+                        player = null
                     }
-                }
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Liste der Aufnahmen
             if (recordings.isNotEmpty()) {
                 Text(
                     "Aufnahmen",
@@ -343,7 +353,7 @@ fun AudioGuestbookScreen(
                         AudioRecordingItem(
                             recording = rec,
                             onPlay = {
-                                player?.apply { stop(); release() }
+                                player?.apply { try { stop() } catch (_: Exception) {}; release() }
                                 player = MediaPlayer().apply {
                                     setDataSource(rec.filePath)
                                     prepare()
@@ -353,6 +363,293 @@ fun AudioGuestbookScreen(
                             onDelete = { viewModel.deleteRecording(rec) }
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MicStatusBadge(micStatus: MicStatus) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                if (micStatus == MicStatus.USB) Color(0xFF1B4020).copy(0.8f) else Color.White.copy(0.08f)
+            )
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(
+            if (micStatus == MicStatus.USB) Icons.Default.Usb else Icons.Default.Mic,
+            null,
+            tint = if (micStatus == MicStatus.USB) Color(0xFF4CAF50) else Color.White.copy(0.5f),
+            modifier = Modifier.size(14.dp)
+        )
+        Text(
+            if (micStatus == MicStatus.USB) "USB-Mikrofon" else "Intern",
+            style = MaterialTheme.typography.labelLarge.copy(
+                color = if (micStatus == MicStatus.USB) Color(0xFF4CAF50) else Color.White.copy(0.5f),
+                fontSize = 11.sp
+            )
+        )
+    }
+}
+
+@Composable
+private fun GreetingSection(
+    hasGreeting: Boolean,
+    isPlaying: Boolean,
+    isRecording: Boolean,
+    recordingSeconds: Long,
+    previewFile: File?,
+    maxSeconds: Long,
+    micBg: Color,
+    pulseScale: Float,
+    onTogglePlay: () -> Unit,
+    onStartRecord: () -> Unit,
+    onStopRecord: () -> Unit,
+    onSave: () -> Unit,
+    onDiscard: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFF59E0B).copy(0.08f))
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Default.RecordVoiceOver, null,
+                tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.size(8.dp))
+            Text(
+                "Begrüßungsnachricht",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    color = Color(0xFFF59E0B), fontWeight = FontWeight.Bold
+                )
+            )
+        }
+        Text(
+            "Wird automatisch für jeden Gast abgespielt",
+            style = MaterialTheme.typography.labelLarge.copy(color = Color.White.copy(0.4f))
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        when {
+            previewFile != null -> {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Aufnahme bereit",
+                        style = MaterialTheme.typography.bodyLarge.copy(color = Color.White),
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = onSave,
+                        modifier = Modifier.background(Color(0xFFF59E0B), CircleShape).size(44.dp)
+                    ) {
+                        Icon(Icons.Default.Save, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
+                    IconButton(
+                        onClick = onDiscard,
+                        modifier = Modifier.background(Color(0xFF4A1010), CircleShape).size(44.dp)
+                    ) {
+                        Icon(Icons.Default.Delete, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
+                }
+            }
+            isRecording -> {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "$recordingSeconds / $maxSeconds Sek.",
+                        style = MaterialTheme.typography.bodyLarge.copy(color = Color.White)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        progress = { recordingSeconds / maxSeconds.toFloat() },
+                        modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
+                        color = Color(0xFFE91E1E),
+                        trackColor = Color.White.copy(0.2f)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .scale(pulseScale)
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(micBg)
+                            .clickable(onClick = onStopRecord),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Stop, null, tint = Color.White, modifier = Modifier.size(28.dp))
+                    }
+                }
+            }
+            hasGreeting -> {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onTogglePlay,
+                        modifier = Modifier.background(Color(0xFFF59E0B).copy(0.2f), CircleShape).size(48.dp)
+                    ) {
+                        Icon(
+                            if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
+                            null, tint = Color(0xFFF59E0B)
+                        )
+                    }
+                    Text(
+                        if (isPlaying) "Wird abgespielt…" else "Begrüßung vorhanden ✓",
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            color = if (isPlaying) Color(0xFFF59E0B) else Color(0xFF4CAF50)
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.background(Color(0xFF4A1010), CircleShape).size(40.dp)
+                    ) {
+                        Icon(Icons.Default.Delete, null, tint = Color.White.copy(0.7f), modifier = Modifier.size(18.dp))
+                    }
+                }
+            }
+            else -> {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .scale(pulseScale)
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(micBg)
+                            .clickable(onClick = onStartRecord),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Mic, null, tint = Color.White, modifier = Modifier.size(26.dp))
+                    }
+                    Text(
+                        "Begrüßung aufnehmen",
+                        style = MaterialTheme.typography.bodyLarge.copy(color = Color.White.copy(0.7f))
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GuestRecordingSection(
+    isBlocked: Boolean,
+    isRecording: Boolean,
+    isPreviewing: Boolean,
+    recordingSeconds: Long,
+    previewFile: File?,
+    maxSeconds: Long,
+    micBg: Color,
+    pulseScale: Float,
+    onToggleMic: () -> Unit,
+    onPreviewPlay: () -> Unit,
+    onSave: () -> Unit,
+    onDiscard: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color.White.copy(if (isBlocked) 0.04f else 0.07f))
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        if (isBlocked) {
+            Icon(
+                Icons.Default.MicOff, null,
+                tint = Color.White.copy(0.3f),
+                modifier = Modifier.size(36.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Bitte warten…",
+                style = MaterialTheme.typography.bodyLarge.copy(color = Color.White.copy(0.4f))
+            )
+            return
+        }
+
+        when {
+            isRecording -> {
+                Text(
+                    "$recordingSeconds / $maxSeconds Sek.",
+                    style = MaterialTheme.typography.titleLarge.copy(color = Color.White),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                LinearProgressIndicator(
+                    progress = { recordingSeconds / maxSeconds.toFloat() },
+                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
+                    color = Color(0xFFE91E1E),
+                    trackColor = Color.White.copy(0.2f)
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+            }
+            previewFile != null -> {
+                Text(
+                    "Nachricht aufgenommen ✓",
+                    style = MaterialTheme.typography.titleLarge.copy(color = Color(0xFF4CAF50))
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            else -> {
+                Text(
+                    "Halte den Knopf um aufzunehmen",
+                    style = MaterialTheme.typography.bodyLarge.copy(color = Color.White.copy(0.6f))
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .scale(pulseScale)
+                .size(100.dp)
+                .clip(CircleShape)
+                .background(micBg)
+                .clickable(enabled = previewFile == null || isRecording, onClick = onToggleMic),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                if (isRecording) Icons.Default.Stop else Icons.Default.Mic,
+                null, tint = Color.White, modifier = Modifier.size(44.dp)
+            )
+        }
+
+        if (previewFile != null && !isRecording) {
+            Spacer(modifier = Modifier.height(20.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                IconButton(
+                    onClick = onPreviewPlay,
+                    modifier = Modifier.background(Color.White.copy(0.1f), CircleShape).size(52.dp)
+                ) {
+                    Icon(
+                        if (isPreviewing) Icons.Default.Stop else Icons.Default.PlayArrow,
+                        "Anhören", tint = Color.White
+                    )
+                }
+                IconButton(
+                    onClick = onSave,
+                    modifier = Modifier.background(MaterialTheme.colorScheme.primary, CircleShape).size(52.dp)
+                ) {
+                    Icon(Icons.Default.Save, "Speichern", tint = Color.White)
+                }
+                IconButton(
+                    onClick = onDiscard,
+                    modifier = Modifier.background(Color(0xFF4A1010), CircleShape).size(52.dp)
+                ) {
+                    Icon(Icons.Default.Delete, "Verwerfen", tint = Color.White)
                 }
             }
         }
