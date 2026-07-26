@@ -189,9 +189,7 @@ fun PhotoReviewScreen(
                     onClick = {
                         uiState.stripPath?.let { path ->
                             (context as? ComponentActivity)?.let { act ->
-                                repeat(uiState.printCopies.coerceAtLeast(1)) {
-                                    printStrip(act, path)
-                                }
+                                printStrip(act, path, uiState.printCopies.coerceAtLeast(1))
                             }
                         }
                     },

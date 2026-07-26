@@ -22,7 +22,7 @@ import java.io.FileOutputStream
  * Der Canon Selphy 1500 erscheint automatisch wenn er im gleichen WLAN ist (Mopria/AirPrint).
  * Zum Testen: "Als PDF speichern" im Android-Druckdialog wählen.
  */
-fun printStrip(activity: ComponentActivity, imagePath: String) {
+fun printStrip(activity: ComponentActivity, imagePath: String, copies: Int = 1) {
     val printManager = activity.getSystemService(Context.PRINT_SERVICE) as PrintManager
     val jobName = "Fotobox Streifen"
 
@@ -32,12 +32,13 @@ fun printStrip(activity: ComponentActivity, imagePath: String) {
         .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
         .build()
 
-    printManager.print(jobName, PhotoPrintAdapter(activity, imagePath), attrs)
+    printManager.print(jobName, PhotoPrintAdapter(activity, imagePath, copies.coerceAtLeast(1)), attrs)
 }
 
 private class PhotoPrintAdapter(
     private val context: Context,
-    private val imagePath: String
+    private val imagePath: String,
+    private val copies: Int
 ) : PrintDocumentAdapter() {
 
     private var pageWidthPts = 0
@@ -61,7 +62,7 @@ private class PhotoPrintAdapter(
 
         val info = PrintDocumentInfo.Builder("fotostreifen.pdf")
             .setContentType(PrintDocumentInfo.CONTENT_TYPE_PHOTO)
-            .setPageCount(1)
+            .setPageCount(copies)
             .build()
 
         callback.onLayoutFinished(info, oldAttributes != newAttributes)
@@ -80,13 +81,13 @@ private class PhotoPrintAdapter(
         }
 
         val document = PdfDocument()
-        val pageInfo = PdfDocument.PageInfo.Builder(pageWidthPts, pageHeightPts, 1).create()
-        val page = document.startPage(pageInfo)
-
-        drawBitmapCentered(page.canvas, bitmap, pageWidthPts, pageHeightPts)
-        document.finishPage(page)
-
         try {
+            repeat(copies) { i ->
+                val pageInfo = PdfDocument.PageInfo.Builder(pageWidthPts, pageHeightPts, i + 1).create()
+                val page = document.startPage(pageInfo)
+                drawBitmapCentered(page.canvas, bitmap, pageWidthPts, pageHeightPts)
+                document.finishPage(page)
+            }
             document.writeTo(FileOutputStream(destination.fileDescriptor))
             callback.onWriteFinished(arrayOf(PageRange.ALL_PAGES))
         } catch (e: Exception) {

@@ -39,7 +39,8 @@ class DalleClient(private val apiKey: String) {
                 .build()
             val response = client.newCall(request).execute()
             if (!response.isSuccessful) return@withContext null
-            val imageUrl = JSONObject(response.body!!.string())
+            val responseBody = response.body?.string() ?: return@withContext null
+            val imageUrl = JSONObject(responseBody)
                 .getJSONArray("data")
                 .getJSONObject(0)
                 .getString("url")

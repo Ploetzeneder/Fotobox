@@ -23,8 +23,8 @@ class CloudSyncManager @Inject constructor(
     private val repository: FotoboxRepository
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var api: FotobiechenApi? = null
-    private var boxId: String = ""
+    @Volatile private var api: FotobiechenApi? = null
+    @Volatile private var boxId: String = ""
 
     private val _syncStatus = MutableStateFlow(SyncStatus.OFFLINE)
     val syncStatus: StateFlow<SyncStatus> = _syncStatus.asStateFlow()
