@@ -11,6 +11,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -91,7 +92,7 @@ fun CountdownOverlay(seconds: Int, photoIndex: Int, totalPhotos: Int) {
                         color = Color.White,
                         shadow = Shadow(Color.Black, Offset(2f, 2f), 6f)
                     ),
-                    modifier = Modifier.align(Alignment.TopCenter)
+                    modifier = Modifier.padding(top = 40.dp)
                 )
             }
         }
@@ -115,7 +116,7 @@ fun BetweenShotsOverlay(takenCount: Int, totalPhotos: Int) {
                     text = "✓ $takenCount/$totalPhotos",
                     style = MaterialTheme.typography.displayLarge.copy(
                         fontSize = 80.sp,
-                        color = Color.Green,
+                        color = Color(0xFF4CAF50),
                         shadow = Shadow(Color.Black, Offset(3f, 3f), 8f)
                     )
                 )

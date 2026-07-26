@@ -229,6 +229,14 @@ fun GalleryScreen(
                         }
                     }
                 },
+                onSave = {
+                    scope.launch {
+                        val ok = viewModel.exportSession(context, session)
+                        snackbarHostState.showSnackbar(
+                            if (ok) "In Galerie gespeichert" else "Export fehlgeschlagen"
+                        )
+                    }
+                },
                 onDelete = { deleteTarget = session }
             )
         }
@@ -242,6 +250,7 @@ private fun FullscreenPhotoViewer(
     onDismiss: () -> Unit,
     onShare: () -> Unit,
     onPrint: () -> Unit,
+    onSave: () -> Unit,
     onDelete: () -> Unit
 ) {
     Box(
@@ -270,6 +279,7 @@ private fun FullscreenPhotoViewer(
         ) {
             ActionButton(onClick = onShare, icon = { Icon(Icons.Default.Share, "Teilen", tint = Color.White, modifier = Modifier.size(20.dp)) })
             ActionButton(onClick = onPrint, icon = { Icon(Icons.Default.Print, "Drucken", tint = Color.White, modifier = Modifier.size(20.dp)) })
+            ActionButton(onClick = onSave, icon = { Icon(Icons.Default.Download, "In Galerie speichern", tint = Color.White, modifier = Modifier.size(20.dp)) })
             ActionButton(onClick = onDelete, icon = { Icon(Icons.Default.Delete, "Löschen", tint = Color(0xFFEF5350), modifier = Modifier.size(20.dp)) })
             ActionButton(onClick = onDismiss, icon = { Icon(Icons.Default.Close, "Schließen", tint = Color.White, modifier = Modifier.size(22.dp)) })
         }

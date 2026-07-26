@@ -34,6 +34,12 @@ class GalleryViewModel @Inject constructor(
         viewModelScope.launch { repository.incrementPrintCount(session.id) }
     }
 
+    suspend fun exportSession(context: Context, session: PhotoSession): Boolean = withContext(Dispatchers.IO) {
+        val path = session.stripFilePath ?: return@withContext false
+        if (!File(path).exists()) return@withContext false
+        BitmapUtils.exportToGallery(context, path, File(path).name)
+    }
+
     suspend fun exportAll(context: Context): Int = withContext(Dispatchers.IO) {
         val currentSessions = sessions.value
         var exported = 0
