@@ -12,9 +12,11 @@ import com.fotobox.app.data.models.StripLayout
 
 class Converters {
     @TypeConverter fun fromStripLayout(v: StripLayout): String = v.name
-    @TypeConverter fun toStripLayout(v: String): StripLayout = StripLayout.valueOf(v)
+    @TypeConverter fun toStripLayout(v: String): StripLayout =
+        runCatching { StripLayout.valueOf(v) }.getOrDefault(StripLayout.STRIP_4)
     @TypeConverter fun fromPhotoFilter(v: PhotoFilter): String = v.name
-    @TypeConverter fun toPhotoFilter(v: String): PhotoFilter = PhotoFilter.valueOf(v)
+    @TypeConverter fun toPhotoFilter(v: String): PhotoFilter =
+        runCatching { PhotoFilter.valueOf(v) }.getOrDefault(PhotoFilter.NONE)
 }
 
 @Database(
