@@ -39,6 +39,9 @@ class HomeViewModel @Inject constructor(
     private val _settingsPin = MutableStateFlow("")
     val settingsPin: StateFlow<String> = _settingsPin.asStateFlow()
 
+    private val _idleSlideshowDelay = MutableStateFlow(0)
+    val idleSlideshowDelay: StateFlow<Int> = _idleSlideshowDelay.asStateFlow()
+
     init {
         loadSettingsIntoState()
     }
@@ -52,6 +55,7 @@ class HomeViewModel @Inject constructor(
         _eventName.value = settings.eventName
         _kioskMode.value = settings.kioskMode
         _settingsPin.value = settings.settingsPin
+        _idleSlideshowDelay.value = settings.idleSlideshowDelay
         cloudSync.configure(settings.cloudApiUrl, settings.cloudToken, settings.cloudBoxId)
     }
 }

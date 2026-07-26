@@ -106,6 +106,7 @@ data class FotoboxSettings(
     val autoPrint: Boolean = false,
     val printCopies: Int = 1,
     val autoReturnDelay: Int = 0,
+    val idleSlideshowDelay: Int = 0,
     val localServerPort: Int = 8888,
     val aiApiKey: String = "",
     // Fotobienchen Cloud

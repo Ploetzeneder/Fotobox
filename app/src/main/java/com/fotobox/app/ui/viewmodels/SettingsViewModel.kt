@@ -45,6 +45,7 @@ class SettingsViewModel @Inject constructor(
     fun updateAutoPrint(v: Boolean) = update { it.copy(autoPrint = v) }
     fun updatePrintCopies(n: Int) = update { it.copy(printCopies = n.coerceIn(1, 5)) }
     fun updateAutoReturnDelay(seconds: Int) = update { it.copy(autoReturnDelay = seconds) }
+    fun updateIdleSlideshowDelay(seconds: Int) = update { it.copy(idleSlideshowDelay = seconds) }
     fun updateStripBackground(bg: StripBackground) = update { it.copy(stripBackground = bg) }
     fun updateAiApiKey(key: String) = update { it.copy(aiApiKey = key) }
     fun updateAutoUpload(v: Boolean) = update { it.copy(autoUploadCloud = v) }

@@ -1,6 +1,10 @@
 package com.fotobox.app.ui.screens
 
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -85,9 +89,23 @@ fun HomeScreen(
     val syncStatus by viewModel.syncStatus.collectAsState()
     val kioskMode by viewModel.kioskMode.collectAsState()
     val settingsPin by viewModel.settingsPin.collectAsState()
+    val idleSlideshowDelay by viewModel.idleSlideshowDelay.collectAsState()
     val context = LocalContext.current
 
     var showPinDialog by remember { mutableStateOf(false) }
+
+    // Idle-Slideshow: track last touch in a non-state container to avoid recomposition churn
+    val lastTouchMs = remember { longArrayOf(System.currentTimeMillis()) }
+    LaunchedEffect(idleSlideshowDelay) {
+        if (idleSlideshowDelay <= 0) return@LaunchedEffect
+        while (true) {
+            delay(5_000L)
+            if (System.currentTimeMillis() - lastTouchMs[0] >= idleSlideshowDelay * 1000L) {
+                onStartSlideShow()
+                break
+            }
+        }
+    }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -112,7 +130,18 @@ fun HomeScreen(
 
     val aiBackground = DalleClient.cacheFile(context)
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent(PointerEventPass.Initial)
+                        lastTouchMs[0] = System.currentTimeMillis()
+                    }
+                }
+            }
+    ) {
 
         if (aiBackground.exists()) {
             AsyncImage(

@@ -312,6 +312,30 @@ fun SettingsScreen(
                         onSelect = { viewModel.updateAutoReturnDelay(delayOptions[it].first) }
                     )
                 }
+                Spacer(modifier = Modifier.height(16.dp))
+                val idleOptions = listOf(0 to "Aus", 30 to "30 Sek", 60 to "1 Min", 120 to "2 Min", 300 to "5 Min")
+                val selectedIdleIdx = idleOptions.indexOfFirst { it.first == settings.idleSlideshowDelay }
+                    .let { if (it < 0) 0 else it }
+                Column {
+                    Text(
+                        "Diashow bei Inaktivität",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
+                    Text(
+                        "Slideshow automatisch starten wenn niemand die App benutzt",
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f)
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SegmentedPicker(
+                        options = idleOptions.map { it.second },
+                        selectedIndex = selectedIdleIdx,
+                        onSelect = { viewModel.updateIdleSlideshowDelay(idleOptions[it].first) }
+                    )
+                }
             }
 
             // Kamera
