@@ -13,6 +13,7 @@ import com.fotobox.app.data.models.PhotoFilter
 import com.fotobox.app.data.models.StripLayout
 import com.fotobox.app.data.repository.FotoboxRepository
 import com.fotobox.app.utils.BitmapUtils
+import com.fotobox.app.utils.CountdownBeeper
 import com.fotobox.app.utils.FilterProcessor
 import com.fotobox.app.utils.ShutterTrigger
 import com.fotobox.app.utils.StripComposer
@@ -138,6 +139,7 @@ class CameraViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(state = CameraState.Countdown(sec, index + 1, photoCount))
                     }
+                    if (sec == 1) CountdownBeeper.beepFinal() else CountdownBeeper.beep()
                     delay(1000L)
                 }
 
