@@ -84,6 +84,7 @@ class FotoboxRepository @Inject constructor(
         showLiveFilter = prefs.getBoolean("show_live_filter", true),
         autoPrint = prefs.getBoolean("auto_print", false),
         printCopies = prefs.getInt("print_copies", 1),
+        autoReturnDelay = prefs.getInt("auto_return_delay", 0),
         localServerPort = prefs.getInt("server_port", 8888),
         aiApiKey = prefs.getString("ai_api_key", "") ?: "",
         cloudApiUrl = prefs.getString("cloud_api_url", "https://fotobienchen.de/api") ?: "https://fotobienchen.de/api",
@@ -105,6 +106,7 @@ class FotoboxRepository @Inject constructor(
             putBoolean("show_live_filter", settings.showLiveFilter)
             putBoolean("auto_print", settings.autoPrint)
             putInt("print_copies", settings.printCopies)
+            putInt("auto_return_delay", settings.autoReturnDelay)
             putInt("server_port", settings.localServerPort)
             putString("ai_api_key", settings.aiApiKey)
             putString("cloud_api_url", settings.cloudApiUrl)

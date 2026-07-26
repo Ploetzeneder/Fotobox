@@ -244,6 +244,33 @@ fun SettingsScreen(
                 }
             }
 
+            // Kiosk-Automatik
+            SettingsSection("Kiosk-Automatik") {
+                val delayOptions = listOf(0 to "Aus", 15 to "15 Sek", 30 to "30 Sek", 60 to "1 Min", 120 to "2 Min")
+                val selectedDelayIdx = delayOptions.indexOfFirst { it.first == settings.autoReturnDelay }
+                    .let { if (it < 0) 0 else it }
+                Column {
+                    Text(
+                        "Auto-Rückkehr",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
+                    Text(
+                        "Nach der Fotovorschau automatisch zum Start",
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f)
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SegmentedPicker(
+                        options = delayOptions.map { it.second },
+                        selectedIndex = selectedDelayIdx,
+                        onSelect = { viewModel.updateAutoReturnDelay(delayOptions[it].first) }
+                    )
+                }
+            }
+
             // Kamera
             SettingsSection("Kamera-Optionen") {
                 SettingsToggle(

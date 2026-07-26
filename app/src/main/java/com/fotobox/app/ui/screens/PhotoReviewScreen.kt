@@ -40,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -59,6 +60,7 @@ import com.fotobox.app.ui.viewmodels.PhotoReviewViewModel
 import com.fotobox.app.utils.QrUtils
 import com.fotobox.app.utils.printStrip
 import java.io.File
+import kotlinx.coroutines.delay
 
 @Composable
 fun PhotoReviewScreen(
@@ -71,6 +73,7 @@ fun PhotoReviewScreen(
     val context = LocalContext.current
     var showQr by remember { mutableStateOf(false) }
     var autoPrintDone by remember { mutableStateOf(false) }
+    var secondsLeft by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(sessionId) {
         viewModel.loadSession(sessionId)
@@ -82,6 +85,17 @@ fun PhotoReviewScreen(
             autoPrintDone = true
             (context as? ComponentActivity)?.let { printStrip(it, uiState.stripPath!!) }
         }
+    }
+
+    LaunchedEffect(uiState.autoReturnDelay, uiState.isLoading) {
+        val totalSeconds = uiState.autoReturnDelay
+        if (totalSeconds <= 0 || uiState.isLoading) return@LaunchedEffect
+        secondsLeft = totalSeconds
+        for (i in totalSeconds downTo 1) {
+            secondsLeft = i
+            delay(1000L)
+        }
+        onDone()
     }
 
     Box(
@@ -201,6 +215,23 @@ fun PhotoReviewScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Fertig — Nächste Gruppe", style = MaterialTheme.typography.titleLarge)
+            }
+        }
+
+        // Auto-return countdown badge
+        if (uiState.autoReturnDelay > 0 && !uiState.isLoading && secondsLeft > 0) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 20.dp, bottom = 16.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.White.copy(0.1f))
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    "Weiter in ${secondsLeft}s",
+                    style = MaterialTheme.typography.labelLarge.copy(color = Color.White.copy(0.5f))
+                )
             }
         }
 

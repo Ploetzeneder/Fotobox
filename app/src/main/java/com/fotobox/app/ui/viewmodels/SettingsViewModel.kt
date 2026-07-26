@@ -42,6 +42,7 @@ class SettingsViewModel @Inject constructor(
     fun updateSettingsPin(pin: String) = update { it.copy(settingsPin = pin) }
     fun updateAutoPrint(v: Boolean) = update { it.copy(autoPrint = v) }
     fun updatePrintCopies(n: Int) = update { it.copy(printCopies = n.coerceIn(1, 5)) }
+    fun updateAutoReturnDelay(seconds: Int) = update { it.copy(autoReturnDelay = seconds) }
     fun updateAiApiKey(key: String) = update { it.copy(aiApiKey = key) }
     fun updateAutoUpload(v: Boolean) = update { it.copy(autoUploadCloud = v) }
 

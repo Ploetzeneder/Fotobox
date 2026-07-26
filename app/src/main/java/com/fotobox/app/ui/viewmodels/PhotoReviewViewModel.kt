@@ -25,7 +25,8 @@ data class PhotoReviewUiState(
     val qrBitmap: Bitmap? = null,
     val isLoading: Boolean = true,
     val shouldAutoPrint: Boolean = false,
-    val printCopies: Int = 1
+    val printCopies: Int = 1,
+    val autoReturnDelay: Int = 0
 )
 
 @HiltViewModel
@@ -52,7 +53,8 @@ class PhotoReviewViewModel @Inject constructor(
                 stripPath = session?.stripFilePath,
                 isLoading = false,
                 shouldAutoPrint = settings.autoPrint,
-                printCopies = settings.printCopies
+                printCopies = settings.printCopies,
+                autoReturnDelay = settings.autoReturnDelay
             )
             if (settings.autoUploadCloud) {
                 cloudSync.syncSessionAsync(sessionId)
