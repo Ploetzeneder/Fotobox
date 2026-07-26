@@ -115,4 +115,5 @@ data class FotoboxSettings(
     val cloudBoxId: String = "",
     val cloudCustomerName: String = "",
     val autoUploadCloud: Boolean = true,
+    val cloudLogoUrl: String = "",
 )

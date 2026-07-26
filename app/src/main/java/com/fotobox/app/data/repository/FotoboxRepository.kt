@@ -65,6 +65,8 @@ class FotoboxRepository @Inject constructor(
         return java.io.File(dir, "voice_${System.currentTimeMillis()}.m4a")
     }
 
+    fun logoFile(): java.io.File = java.io.File(context.filesDir, "cloud_logo.png")
+
     fun greetingFile(): java.io.File {
         val dir = java.io.File(context.filesDir, "audio").apply { mkdirs() }
         return java.io.File(dir, "greeting.m4a")
@@ -100,6 +102,7 @@ class FotoboxRepository @Inject constructor(
         cloudBoxId = prefs.getString("cloud_box_id", "") ?: "",
         cloudCustomerName = prefs.getString("cloud_customer_name", "") ?: "",
         autoUploadCloud = prefs.getBoolean("auto_upload_cloud", true),
+        cloudLogoUrl = prefs.getString("cloud_logo_url", "") ?: "",
     )
 
     fun saveSettings(settings: FotoboxSettings) {
@@ -124,6 +127,7 @@ class FotoboxRepository @Inject constructor(
             putString("cloud_box_id", settings.cloudBoxId)
             putString("cloud_customer_name", settings.cloudCustomerName)
             putBoolean("auto_upload_cloud", settings.autoUploadCloud)
+            putString("cloud_logo_url", settings.cloudLogoUrl)
             apply()
         }
     }

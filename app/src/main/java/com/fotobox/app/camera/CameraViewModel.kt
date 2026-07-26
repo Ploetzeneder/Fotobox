@@ -222,14 +222,20 @@ class CameraViewModel @Inject constructor(
 
         _uiState.update { it.copy(state = CameraState.Processing(0.75f)) }
 
+        val logoBitmap = withContext(Dispatchers.IO) {
+            val logoFile = repository.logoFile()
+            if (logoFile.exists()) BitmapUtils.loadBitmap(logoFile.absolutePath) else null
+        }
         val strip = withContext(Dispatchers.Default) {
             StripComposer.compose(
                 filteredBitmaps,
                 layout,
                 eventName = settings.eventName,
-                backgroundColor = settings.stripBackground.colorArgb
+                backgroundColor = settings.stripBackground.colorArgb,
+                logoBitmap = logoBitmap
             )
         }
+        logoBitmap?.recycle()
         val stripPath = withContext(Dispatchers.IO) {
             BitmapUtils.saveBitmap(context, strip, "strip_$sessionId")
         }

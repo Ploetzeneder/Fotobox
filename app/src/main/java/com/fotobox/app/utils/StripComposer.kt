@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.Typeface
 import com.fotobox.app.data.models.StripLayout
 import java.text.SimpleDateFormat
@@ -21,7 +22,20 @@ object StripComposer {
         layout: StripLayout,
         eventName: String = "",
         addTimestamp: Boolean = true,
-        backgroundColor: Int = Color.WHITE
+        backgroundColor: Int = Color.WHITE,
+        logoBitmap: Bitmap? = null
+    ): Bitmap {
+        val result = composeLayout(photos, layout, eventName, addTimestamp, backgroundColor)
+        if (logoBitmap != null) overlayLogo(result, logoBitmap)
+        return result
+    }
+
+    private fun composeLayout(
+        photos: List<Bitmap>,
+        layout: StripLayout,
+        eventName: String,
+        addTimestamp: Boolean,
+        backgroundColor: Int
     ): Bitmap {
         return when (layout) {
             StripLayout.SINGLE -> {
@@ -51,6 +65,23 @@ object StripComposer {
             StripLayout.HERO_PLUS_3 ->
                 composeHero(photos.take(4), 3, eventName, addTimestamp, backgroundColor)
         }
+    }
+
+    private fun overlayLogo(strip: Bitmap, logo: Bitmap) {
+        val maxLogoW = (strip.width * 0.22f).toInt().coerceAtLeast(60)
+        val scale = maxLogoW.toFloat() / logo.width
+        val logoW = maxLogoW
+        val logoH = (logo.height * scale).toInt()
+        val margin = BORDER / 2
+        val left = strip.width - logoW - margin
+        val top = margin
+        val canvas = Canvas(strip)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply { alpha = 210 }
+        canvas.drawBitmap(
+            logo, null,
+            RectF(left.toFloat(), top.toFloat(), (left + logoW).toFloat(), (top + logoH).toFloat()),
+            paint
+        )
     }
 
     private fun normalizeWidth(bitmap: Bitmap, targetW: Int = 800): Bitmap {

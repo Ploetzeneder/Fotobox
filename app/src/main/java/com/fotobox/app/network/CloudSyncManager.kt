@@ -12,7 +12,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -82,6 +84,15 @@ class CloudSyncManager @Inject constructor(
         }
     }
 
+    private fun downloadLogoAsync(url: String) {
+        scope.launch {
+            try {
+                val bytes = withContext(Dispatchers.IO) { URL(url).readBytes() }
+                repository.logoFile().writeBytes(bytes)
+            } catch (_: Exception) {}
+        }
+    }
+
     suspend fun fetchAndApplySettings(): Boolean {
         val currentApi = api ?: return false
         return try {
@@ -100,8 +111,12 @@ class CloudSyncManager @Inject constructor(
                     countdownDuration = countdown,
                     autoPrint = cloud.autoPrint,
                     printCopies = cloud.printCopies,
+                    cloudLogoUrl = cloud.logoUrl,
                 )
             )
+            if (cloud.logoUrl.isNotEmpty() && cloud.logoUrl != current.cloudLogoUrl) {
+                downloadLogoAsync(cloud.logoUrl)
+            }
             true
         } catch (_: Exception) { false }
     }
