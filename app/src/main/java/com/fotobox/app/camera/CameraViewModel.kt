@@ -58,7 +58,8 @@ data class CameraUiState(
     val selectedLayout: StripLayout = StripLayout.STRIP_4,
     val cameras: List<CameraOption> = emptyList(),
     val selectedCameraIndex: Int = 0,
-    val capturedCount: Int = 0
+    val capturedCount: Int = 0,
+    val showLiveFilter: Boolean = true
 ) {
     val selectedCamera: CameraOption? get() = cameras.getOrNull(selectedCameraIndex)
 }
@@ -81,7 +82,8 @@ class CameraViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 selectedFilter = settings.defaultFilter,
-                selectedLayout = settings.stripLayout
+                selectedLayout = settings.stripLayout,
+                showLiveFilter = settings.showLiveFilter
             )
         }
         viewModelScope.launch {

@@ -63,6 +63,7 @@ import com.fotobox.app.camera.CameraType
 import com.fotobox.app.camera.CameraViewModel
 import com.fotobox.app.data.models.PhotoFilter
 import com.fotobox.app.data.models.StripLayout
+import com.fotobox.app.utils.FilterProcessor
 import com.fotobox.app.ui.components.BetweenShotsOverlay
 import com.fotobox.app.ui.components.CountdownOverlay
 import com.fotobox.app.ui.components.FlashEffect
@@ -100,6 +101,8 @@ fun CameraScreen(
         val selectedCameraInfo = uiState.selectedCamera?.cameraInfo
         CameraPreview(
             cameraSelector = selectedCameraInfo?.cameraSelector ?: CameraSelector.DEFAULT_BACK_CAMERA,
+            filter = uiState.selectedFilter,
+            showLiveFilter = uiState.showLiveFilter,
             onCaptureBound = { viewModel.setImageCapture(it) },
             onCamerasDetected = { viewModel.setAvailableCameras(it) }
         )
@@ -142,12 +145,19 @@ fun CameraScreen(
 @Composable
 private fun CameraPreview(
     cameraSelector: CameraSelector,
+    filter: PhotoFilter,
+    showLiveFilter: Boolean,
     onCaptureBound: (ImageCapture) -> Unit,
     onCamerasDetected: (List<androidx.camera.core.CameraInfo>) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val previewView = remember { PreviewView(context) }
+    val previewView = remember {
+        PreviewView(context).apply {
+            // COMPATIBLE mode uses TextureView, which supports setLayerType color filters
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+        }
+    }
 
     LaunchedEffect(cameraSelector) {
         val future = ProcessCameraProvider.getInstance(context)
@@ -174,7 +184,21 @@ private fun CameraPreview(
         }
     }
 
-    AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
+    AndroidView(
+        factory = { previewView },
+        update = { view ->
+            if (showLiveFilter && filter != PhotoFilter.NONE) {
+                val cm = FilterProcessor.buildColorMatrix(filter)
+                val paint = android.graphics.Paint().apply {
+                    colorFilter = android.graphics.ColorMatrixColorFilter(cm)
+                }
+                view.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, paint)
+            } else {
+                view.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
+            }
+        },
+        modifier = Modifier.fillMaxSize()
+    )
 }
 
 @Composable
