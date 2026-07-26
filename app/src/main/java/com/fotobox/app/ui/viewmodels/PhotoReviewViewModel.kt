@@ -23,7 +23,9 @@ data class PhotoReviewUiState(
     val photos: List<Photo> = emptyList(),
     val stripPath: String? = null,
     val qrBitmap: Bitmap? = null,
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val shouldAutoPrint: Boolean = false,
+    val printCopies: Int = 1
 )
 
 @HiltViewModel
@@ -44,12 +46,15 @@ class PhotoReviewViewModel @Inject constructor(
         viewModelScope.launch {
             val session = repository.getSession(sessionId)
             val photos = repository.getPhotosForSession(sessionId)
+            val settings = repository.loadSettings()
             _uiState.value = PhotoReviewUiState(
                 photos = photos,
                 stripPath = session?.stripFilePath,
-                isLoading = false
+                isLoading = false,
+                shouldAutoPrint = settings.autoPrint,
+                printCopies = settings.printCopies
             )
-            if (repository.loadSettings().autoUploadCloud) {
+            if (settings.autoUploadCloud) {
                 cloudSync.syncSessionAsync(sessionId)
             }
         }

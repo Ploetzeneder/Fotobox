@@ -2,6 +2,11 @@ package com.fotobox.app.ui.screens
 
 import android.content.Context
 import android.content.Intent
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,10 +24,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -51,6 +59,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.fotobox.app.data.models.PhotoSession
 import com.fotobox.app.ui.viewmodels.GalleryViewModel
+import com.fotobox.app.utils.printStrip
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -64,17 +73,15 @@ fun GalleryScreen(
     val sessions by viewModel.sessions.collectAsState()
     val context = LocalContext.current
     var deleteTarget by remember { mutableStateOf<PhotoSession?>(null) }
+    var fullscreenSession by remember { mutableStateOf<PhotoSession?>(null) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Header
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
@@ -118,6 +125,7 @@ fun GalleryScreen(
                 items(sessions) { session ->
                     GalleryItem(
                         session = session,
+                        onTap = { if (session.stripFilePath != null) fullscreenSession = session },
                         onShare = { session.stripFilePath?.let { sharePhoto(context, it) } },
                         onDelete = { deleteTarget = session }
                     )
@@ -135,6 +143,7 @@ fun GalleryScreen(
                 TextButton(onClick = {
                     viewModel.deleteSession(session)
                     deleteTarget = null
+                    if (fullscreenSession?.id == session.id) fullscreenSession = null
                 }) {
                     Text("Löschen", color = MaterialTheme.colorScheme.error)
                 }
@@ -144,16 +153,104 @@ fun GalleryScreen(
             }
         )
     }
+
+    // Fullscreen viewer
+    AnimatedVisibility(
+        visible = fullscreenSession != null,
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
+        fullscreenSession?.let { session ->
+            BackHandler { fullscreenSession = null }
+            FullscreenPhotoViewer(
+                session = session,
+                onDismiss = { fullscreenSession = null },
+                onShare = { session.stripFilePath?.let { sharePhoto(context, it) } },
+                onPrint = {
+                    session.stripFilePath?.let { path ->
+                        (context as? ComponentActivity)?.let { act -> printStrip(act, path) }
+                    }
+                },
+                onDelete = { deleteTarget = session }
+            )
+        }
+    }
+}
+
+@Composable
+private fun FullscreenPhotoViewer(
+    session: PhotoSession,
+    onDismiss: () -> Unit,
+    onShare: () -> Unit,
+    onPrint: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(0.96f))
+            .clickable(onClick = onDismiss)
+    ) {
+        // Strip image centered
+        AsyncImage(
+            model = session.stripFilePath,
+            contentDescription = "Fotostreifen",
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 32.dp, vertical = 80.dp)
+                .clickable { /* consume click so background doesn't dismiss */ },
+            contentScale = ContentScale.Fit
+        )
+
+        // Top-right controls
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            ActionButton(onClick = onShare, icon = { Icon(Icons.Default.Share, "Teilen", tint = Color.White, modifier = Modifier.size(20.dp)) })
+            ActionButton(onClick = onPrint, icon = { Icon(Icons.Default.Print, "Drucken", tint = Color.White, modifier = Modifier.size(20.dp)) })
+            ActionButton(onClick = onDelete, icon = { Icon(Icons.Default.Delete, "Löschen", tint = Color(0xFFEF5350), modifier = Modifier.size(20.dp)) })
+            ActionButton(onClick = onDismiss, icon = { Icon(Icons.Default.Close, "Schließen", tint = Color.White, modifier = Modifier.size(22.dp)) })
+        }
+
+        // Date at bottom
+        Text(
+            formatDate(session.createdAt),
+            style = MaterialTheme.typography.labelLarge.copy(color = Color.White.copy(0.5f)),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 20.dp)
+        )
+    }
+}
+
+@Composable
+private fun ActionButton(onClick: () -> Unit, icon: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(Color.Black.copy(0.6f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        icon()
+    }
 }
 
 @Composable
 private fun GalleryItem(
     session: PhotoSession,
+    onTap: () -> Unit,
     onShare: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onTap),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         shape = RoundedCornerShape(8.dp)
     ) {
@@ -192,7 +289,7 @@ private fun GalleryItem(
 }
 
 private fun formatDate(timestamp: Long): String =
-    SimpleDateFormat("dd.MM.yy", Locale.getDefault()).format(Date(timestamp))
+    SimpleDateFormat("dd.MM.yy · HH:mm", Locale.getDefault()).format(Date(timestamp))
 
 private fun sharePhoto(context: Context, path: String) {
     val file = File(path)

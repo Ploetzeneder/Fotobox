@@ -23,15 +23,26 @@ class SlideShowViewModel @Inject constructor(
     private val _hasImages = MutableStateFlow(false)
     val hasImages: StateFlow<Boolean> = _hasImages.asStateFlow()
 
+    private val _eventName = MutableStateFlow("")
+    val eventName: StateFlow<String> = _eventName.asStateFlow()
+
+    private val _photoCount = MutableStateFlow(0)
+    val photoCount: StateFlow<Int> = _photoCount.asStateFlow()
+
+    private val _currentIndex = MutableStateFlow(0)
+    val currentIndex: StateFlow<Int> = _currentIndex.asStateFlow()
+
     private var imagePaths = listOf<String>()
-    private var currentIndex = 0
     private var running = false
 
     fun start() {
         viewModelScope.launch {
+            val settings = repository.loadSettings()
+            _eventName.value = settings.eventName
             val sessions = repository.getAllSessions().first()
             imagePaths = sessions.mapNotNull { it.stripFilePath }
             _hasImages.value = imagePaths.isNotEmpty()
+            _photoCount.value = imagePaths.size
             if (imagePaths.isNotEmpty()) {
                 _currentImagePath.value = imagePaths[0]
                 running = true
@@ -42,8 +53,9 @@ class SlideShowViewModel @Inject constructor(
 
     fun next() {
         if (imagePaths.isEmpty()) return
-        currentIndex = (currentIndex + 1) % imagePaths.size
-        _currentImagePath.value = imagePaths[currentIndex]
+        val next = (_currentIndex.value + 1) % imagePaths.size
+        _currentIndex.value = next
+        _currentImagePath.value = imagePaths[next]
     }
 
     private suspend fun autoAdvance() {

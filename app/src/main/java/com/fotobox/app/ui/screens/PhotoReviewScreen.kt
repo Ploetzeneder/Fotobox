@@ -70,11 +70,18 @@ fun PhotoReviewScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var showQr by remember { mutableStateOf(false) }
+    var autoPrintDone by remember { mutableStateOf(false) }
 
     LaunchedEffect(sessionId) {
         viewModel.loadSession(sessionId)
-        // Server läuft im Hintergrund, QR-URL wird automatisch generiert
         viewModel.generateQrUrl(sessionId)
+    }
+
+    LaunchedEffect(uiState.stripPath, uiState.isLoading) {
+        if (!autoPrintDone && !uiState.isLoading && uiState.shouldAutoPrint && uiState.stripPath != null) {
+            autoPrintDone = true
+            (context as? ComponentActivity)?.let { printStrip(it, uiState.stripPath!!) }
+        }
     }
 
     Box(
@@ -169,7 +176,11 @@ fun PhotoReviewScreen(
                 Button(
                     onClick = {
                         uiState.stripPath?.let { path ->
-                            (context as? ComponentActivity)?.let { printStrip(it, path) }
+                            (context as? ComponentActivity)?.let { act ->
+                                repeat(uiState.printCopies.coerceAtLeast(1)) {
+                                    printStrip(act, path)
+                                }
+                            }
                         }
                     },
                     modifier = Modifier.weight(1f),
@@ -179,7 +190,7 @@ fun PhotoReviewScreen(
                 ) {
                     Icon(Icons.Default.Print, null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.size(4.dp))
-                    Text("Drucken")
+                    Text(if (uiState.printCopies > 1) "×${uiState.printCopies}" else "Drucken")
                 }
             }
 
