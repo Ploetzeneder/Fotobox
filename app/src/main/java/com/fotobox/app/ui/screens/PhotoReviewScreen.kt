@@ -81,7 +81,10 @@ fun PhotoReviewScreen(
     LaunchedEffect(uiState.stripPath, uiState.isLoading) {
         if (!autoPrintDone && !uiState.isLoading && uiState.shouldAutoPrint && uiState.stripPath != null) {
             autoPrintDone = true
-            (context as? ComponentActivity)?.let { printStrip(it, uiState.stripPath!!) }
+            (context as? ComponentActivity)?.let {
+                printStrip(it, uiState.stripPath!!, uiState.printCopies.coerceAtLeast(1))
+                viewModel.recordPrint()
+            }
         }
     }
 
@@ -190,6 +193,7 @@ fun PhotoReviewScreen(
                         uiState.stripPath?.let { path ->
                             (context as? ComponentActivity)?.let { act ->
                                 printStrip(act, path, uiState.printCopies.coerceAtLeast(1))
+                                viewModel.recordPrint()
                             }
                         }
                     },

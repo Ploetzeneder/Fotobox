@@ -166,7 +166,10 @@ fun GalleryScreen(
                 onShare = { session.stripFilePath?.let { ShareUtils.sharePhoto(context, it) } },
                 onPrint = {
                     session.stripFilePath?.let { path ->
-                        (context as? ComponentActivity)?.let { act -> printStrip(act, path) }
+                        (context as? ComponentActivity)?.let { act ->
+                            printStrip(act, path)
+                            viewModel.recordPrint(session)
+                        }
                     }
                 },
                 onDelete = { deleteTarget = session }

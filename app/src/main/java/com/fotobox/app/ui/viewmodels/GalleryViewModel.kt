@@ -22,4 +22,8 @@ class GalleryViewModel @Inject constructor(
     fun deleteSession(session: PhotoSession) {
         viewModelScope.launch { repository.deleteSession(session) }
     }
+
+    fun recordPrint(session: PhotoSession) {
+        viewModelScope.launch { repository.incrementPrintCount(session.id) }
+    }
 }

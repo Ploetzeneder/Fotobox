@@ -35,6 +35,8 @@ class FotoboxRepository @Inject constructor(
     suspend fun getSession(id: Long): PhotoSession? = sessionDao.getById(id)
     suspend fun updateStripPath(sessionId: Long, path: String) =
         sessionDao.updateStripPath(sessionId, path)
+    suspend fun incrementPrintCount(sessionId: Long) =
+        sessionDao.incrementPrintCount(sessionId)
     suspend fun deleteSession(session: PhotoSession) {
         photoDao.getPhotosForSession(session.id).forEach {
             try { java.io.File(it.filePath).delete() } catch (_: Exception) {}

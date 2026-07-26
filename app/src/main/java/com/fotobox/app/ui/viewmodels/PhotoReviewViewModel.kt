@@ -39,11 +39,20 @@ class PhotoReviewViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(PhotoReviewUiState())
     val uiState: StateFlow<PhotoReviewUiState> = _uiState.asStateFlow()
 
+    private var currentSessionId: Long = -1
+
     private val server by lazy {
         LocalPhotoServer(context, repository.loadSettings().localServerPort)
     }
 
+    fun recordPrint() {
+        val id = currentSessionId
+        if (id < 0) return
+        viewModelScope.launch(Dispatchers.IO) { repository.incrementPrintCount(id) }
+    }
+
     fun loadSession(sessionId: Long) {
+        currentSessionId = sessionId
         viewModelScope.launch {
             val session = repository.getSession(sessionId)
             val photos = repository.getPhotosForSession(sessionId)
