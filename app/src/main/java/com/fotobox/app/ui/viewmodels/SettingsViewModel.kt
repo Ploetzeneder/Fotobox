@@ -43,6 +43,7 @@ class SettingsViewModel @Inject constructor(
     val logoFilePath: String get() = repository.logoFile().absolutePath
 
     fun updateEventName(name: String) = update { it.copy(eventName = name) }
+    fun updateCustomerName(name: String) = update { it.copy(cloudCustomerName = name) }
     fun updateCountdown(d: CountdownDuration) = update { it.copy(countdownDuration = d) }
     fun updateLayout(l: StripLayout) = update { it.copy(stripLayout = l) }
     fun updateFilter(f: PhotoFilter) = update { it.copy(defaultFilter = f) }

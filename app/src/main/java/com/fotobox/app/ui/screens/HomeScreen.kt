@@ -87,6 +87,7 @@ fun HomeScreen(
     val totalPrints by viewModel.totalPrints.collectAsState()
     val audioCount by viewModel.audioCount.collectAsState()
     val eventName by viewModel.eventName.collectAsState()
+    val customerName by viewModel.customerName.collectAsState()
     val syncStatus by viewModel.syncStatus.collectAsState()
     val kioskMode by viewModel.kioskMode.collectAsState()
     val settingsPin by viewModel.settingsPin.collectAsState()
@@ -193,6 +194,16 @@ fun HomeScreen(
             modifier = Modifier.align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            if (customerName.isNotEmpty()) {
+                Text(
+                    text = "Hallo $customerName!",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        color = Color.White,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
             if (eventName.isNotEmpty()) {
                 Text(
                     text = eventName.uppercase(),

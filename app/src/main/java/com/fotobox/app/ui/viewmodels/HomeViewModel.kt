@@ -37,6 +37,9 @@ class HomeViewModel @Inject constructor(
     private val _eventName = MutableStateFlow("")
     val eventName: StateFlow<String> = _eventName.asStateFlow()
 
+    private val _customerName = MutableStateFlow("")
+    val customerName: StateFlow<String> = _customerName.asStateFlow()
+
     private val _kioskMode = MutableStateFlow(false)
     val kioskMode: StateFlow<Boolean> = _kioskMode.asStateFlow()
 
@@ -57,6 +60,7 @@ class HomeViewModel @Inject constructor(
     private fun loadSettingsIntoState() {
         val settings = repository.loadSettings()
         _eventName.value = settings.eventName
+        _customerName.value = settings.cloudCustomerName
         _kioskMode.value = settings.kioskMode
         _settingsPin.value = settings.settingsPin
         _idleSlideshowDelay.value = settings.idleSlideshowDelay

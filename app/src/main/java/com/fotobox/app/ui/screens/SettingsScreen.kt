@@ -165,6 +165,16 @@ fun SettingsScreen(
             // Veranstaltung
             SettingsSection("Veranstaltung") {
                 OutlinedTextField(
+                    value = settings.cloudCustomerName,
+                    onValueChange = { viewModel.updateCustomerName(it) },
+                    label = { Text("Kundenname (Begrüßung auf Startbildschirm)") },
+                    placeholder = { Text("z.B. Bettina") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
                     value = settings.eventName,
                     onValueChange = { viewModel.updateEventName(it) },
                     label = { Text("Event-Name (optional)") },
