@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cloud
@@ -31,12 +32,19 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Slideshow
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.SyncProblem
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,10 +56,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import com.fotobox.app.network.DalleClient
 import com.fotobox.app.network.SyncStatus
@@ -70,7 +83,20 @@ fun HomeScreen(
     val audioCount by viewModel.audioCount.collectAsState()
     val eventName by viewModel.eventName.collectAsState()
     val syncStatus by viewModel.syncStatus.collectAsState()
+    val kioskMode by viewModel.kioskMode.collectAsState()
+    val settingsPin by viewModel.settingsPin.collectAsState()
     val context = LocalContext.current
+
+    var showPinDialog by remember { mutableStateOf(false) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     val infiniteTransition = rememberInfiniteTransition(label = "bg")
     val rotation by infiniteTransition.animateFloat(
@@ -128,7 +154,9 @@ fun HomeScreen(
                 highlight = audioCount > 0,
                 onClick = onOpenAudioGuestbook
             )
-            NavButton(icon = Icons.Default.Settings, label = "Einstellungen", onClick = onOpenSettings)
+            NavButton(icon = Icons.Default.Settings, label = "Einstellungen", onClick = {
+                if (kioskMode && settingsPin.isNotEmpty()) showPinDialog = true else onOpenSettings()
+            })
         }
 
         Column(
@@ -214,6 +242,58 @@ fun HomeScreen(
                 color = Color.White.copy(0.25f)
             )
         }
+    }
+
+    if (showPinDialog) {
+        var enteredPin by remember { mutableStateOf("") }
+        var pinError by remember { mutableStateOf(false) }
+
+        AlertDialog(
+            onDismissRequest = { showPinDialog = false; enteredPin = ""; pinError = false },
+            title = { Text("Einstellungen entsperren") },
+            text = {
+                Column {
+                    Text(
+                        "Bitte PIN eingeben",
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = enteredPin,
+                        onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) enteredPin = it },
+                        label = { Text("PIN") },
+                        singleLine = true,
+                        isError = pinError,
+                        supportingText = if (pinError) {
+                            { Text("Falscher PIN") }
+                        } else null,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        visualTransformation = PasswordVisualTransformation()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (enteredPin == settingsPin) {
+                        showPinDialog = false
+                        enteredPin = ""
+                        pinError = false
+                        onOpenSettings()
+                    } else {
+                        pinError = true
+                    }
+                }) {
+                    Text("Entsperren")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPinDialog = false; enteredPin = ""; pinError = false }) {
+                    Text("Abbrechen")
+                }
+            }
+        )
     }
 }
 

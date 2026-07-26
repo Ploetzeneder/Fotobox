@@ -79,6 +79,7 @@ class FotoboxRepository @Inject constructor(
         ),
         useFlash = prefs.getBoolean("use_flash", true),
         kioskMode = prefs.getBoolean("kiosk_mode", false),
+        settingsPin = prefs.getString("settings_pin", "") ?: "",
         eventName = prefs.getString("event_name", "") ?: "",
         showLiveFilter = prefs.getBoolean("show_live_filter", true),
         autoPrint = prefs.getBoolean("auto_print", false),
@@ -99,6 +100,7 @@ class FotoboxRepository @Inject constructor(
             putString("default_filter", settings.defaultFilter.name)
             putBoolean("use_flash", settings.useFlash)
             putBoolean("kiosk_mode", settings.kioskMode)
+            putString("settings_pin", settings.settingsPin)
             putString("event_name", settings.eventName)
             putBoolean("show_live_filter", settings.showLiveFilter)
             putBoolean("auto_print", settings.autoPrint)

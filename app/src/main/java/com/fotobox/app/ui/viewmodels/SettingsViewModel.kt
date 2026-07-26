@@ -39,6 +39,9 @@ class SettingsViewModel @Inject constructor(
     fun updateFilter(f: PhotoFilter) = update { it.copy(defaultFilter = f) }
     fun updateFlash(v: Boolean) = update { it.copy(useFlash = v) }
     fun updateKiosk(v: Boolean) = update { it.copy(kioskMode = v) }
+    fun updateSettingsPin(pin: String) = update { it.copy(settingsPin = pin) }
+    fun updateAutoPrint(v: Boolean) = update { it.copy(autoPrint = v) }
+    fun updatePrintCopies(n: Int) = update { it.copy(printCopies = n.coerceIn(1, 5)) }
     fun updateAiApiKey(key: String) = update { it.copy(aiApiKey = key) }
     fun updateAutoUpload(v: Boolean) = update { it.copy(autoUploadCloud = v) }
 

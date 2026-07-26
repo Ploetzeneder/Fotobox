@@ -33,13 +33,25 @@ class HomeViewModel @Inject constructor(
     private val _eventName = MutableStateFlow("")
     val eventName: StateFlow<String> = _eventName.asStateFlow()
 
-    private val _cloudCustomerName = MutableStateFlow("")
-    val cloudCustomerName: StateFlow<String> = _cloudCustomerName.asStateFlow()
+    private val _kioskMode = MutableStateFlow(false)
+    val kioskMode: StateFlow<Boolean> = _kioskMode.asStateFlow()
+
+    private val _settingsPin = MutableStateFlow("")
+    val settingsPin: StateFlow<String> = _settingsPin.asStateFlow()
 
     init {
+        loadSettingsIntoState()
+    }
+
+    fun refresh() {
+        loadSettingsIntoState()
+    }
+
+    private fun loadSettingsIntoState() {
         val settings = repository.loadSettings()
         _eventName.value = settings.eventName
-        _cloudCustomerName.value = settings.cloudCustomerName
+        _kioskMode.value = settings.kioskMode
+        _settingsPin.value = settings.settingsPin
         cloudSync.configure(settings.cloudApiUrl, settings.cloudToken, settings.cloudBoxId)
     }
 }

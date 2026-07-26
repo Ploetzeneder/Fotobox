@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,6 +46,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fotobox.app.data.models.CountdownDuration
@@ -179,6 +183,67 @@ fun SettingsScreen(
                 )
             }
 
+            // Druckoptionen
+            SettingsSection("Druckoptionen") {
+                SettingsToggle(
+                    label = "Auto-Druck",
+                    description = "Streifen automatisch nach jeder Aufnahme drucken",
+                    checked = settings.autoPrint,
+                    onToggle = { viewModel.updateAutoPrint(it) }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Druckexemplare",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        )
+                        Text(
+                            "Anzahl der Ausdrucke pro Aufnahme",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f)
+                            )
+                        )
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        FilledTonalButton(
+                            onClick = { viewModel.updatePrintCopies(settings.printCopies - 1) },
+                            enabled = settings.printCopies > 1,
+                            modifier = Modifier.size(40.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
+                        ) {
+                            Text("−", style = MaterialTheme.typography.titleLarge)
+                        }
+                        Text(
+                            "${settings.printCopies}",
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            modifier = Modifier.width(36.dp),
+                            textAlign = TextAlign.Center
+                        )
+                        FilledTonalButton(
+                            onClick = { viewModel.updatePrintCopies(settings.printCopies + 1) },
+                            enabled = settings.printCopies < 5,
+                            modifier = Modifier.size(40.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
+                        ) {
+                            Text("+", style = MaterialTheme.typography.titleLarge)
+                        }
+                    }
+                }
+            }
+
             // Kamera
             SettingsSection("Kamera-Optionen") {
                 SettingsToggle(
@@ -194,6 +259,28 @@ fun SettingsScreen(
                     checked = settings.kioskMode,
                     onToggle = { viewModel.updateKiosk(it) }
                 )
+                if (settings.kioskMode) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = settings.settingsPin,
+                        onValueChange = { v ->
+                            if (v.length <= 6 && v.all { it.isDigit() }) viewModel.updateSettingsPin(v)
+                        },
+                        label = { Text("Einstellungen-PIN (optional)") },
+                        placeholder = { Text("z.B. 1234") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        visualTransformation = PasswordVisualTransformation()
+                    )
+                    Text(
+                        "Leer lassen = kein PIN-Schutz",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
+                        ),
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
             }
 
             // KI-Hintergrund

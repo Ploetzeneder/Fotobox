@@ -91,6 +91,7 @@ data class FotoboxSettings(
     val defaultFilter: PhotoFilter = PhotoFilter.NONE,
     val useFlash: Boolean = true,
     val kioskMode: Boolean = false,
+    val settingsPin: String = "",
     val eventName: String = "",
     val showLiveFilter: Boolean = true,
     val autoPrint: Boolean = false,
