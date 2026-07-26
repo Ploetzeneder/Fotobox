@@ -204,48 +204,53 @@ class CameraViewModel @Inject constructor(
         val filter = _uiState.value.selectedFilter
         val layout = _uiState.value.selectedLayout
 
-        val filteredBitmaps = withContext(Dispatchers.Default) {
-            capturedBitmaps.mapIndexed { i, bmp ->
-                _uiState.update {
-                    it.copy(state = CameraState.Processing((i + 1f) / capturedBitmaps.size * 0.6f))
+        var filteredBitmaps: List<Bitmap> = emptyList()
+        try {
+            filteredBitmaps = withContext(Dispatchers.Default) {
+                capturedBitmaps.mapIndexed { i, bmp ->
+                    _uiState.update {
+                        it.copy(state = CameraState.Processing((i + 1f) / capturedBitmaps.size * 0.6f))
+                    }
+                    FilterProcessor.applyFilter(bmp, filter)
                 }
-                FilterProcessor.applyFilter(bmp, filter)
             }
-        }
-        val photos = withContext(Dispatchers.IO) {
-            filteredBitmaps.mapIndexed { i, bmp ->
-                val path = BitmapUtils.saveBitmap(context, bmp, "photo_$sessionId")
-                Photo(sessionId = sessionId, filePath = path, filter = filter, orderIndex = i)
+            val photos = withContext(Dispatchers.IO) {
+                filteredBitmaps.mapIndexed { i, bmp ->
+                    val path = BitmapUtils.saveBitmap(context, bmp, "photo_$sessionId")
+                    Photo(sessionId = sessionId, filePath = path, filter = filter, orderIndex = i)
+                }
             }
-        }
-        repository.savePhotos(photos)
+            repository.savePhotos(photos)
 
-        _uiState.update { it.copy(state = CameraState.Processing(0.75f)) }
+            _uiState.update { it.copy(state = CameraState.Processing(0.75f)) }
 
-        val logoBitmap = withContext(Dispatchers.IO) {
-            val logoFile = repository.logoFile()
-            if (logoFile.exists()) BitmapUtils.loadBitmap(logoFile.absolutePath) else null
+            val logoBitmap = withContext(Dispatchers.IO) {
+                val logoFile = repository.logoFile()
+                if (logoFile.exists()) BitmapUtils.loadBitmap(logoFile.absolutePath) else null
+            }
+            val strip = withContext(Dispatchers.Default) {
+                StripComposer.compose(
+                    filteredBitmaps,
+                    layout,
+                    eventName = settings.eventName,
+                    backgroundColor = settings.stripBackground.colorArgb,
+                    logoBitmap = logoBitmap
+                )
+            }
+            logoBitmap?.recycle()
+            val stripPath = withContext(Dispatchers.IO) {
+                BitmapUtils.saveBitmap(context, strip, "strip_$sessionId")
+            }
+            strip.recycle()
+            repository.updateStripPath(sessionId, stripPath)
+            _uiState.update { it.copy(state = CameraState.Done(sessionId)) }
+        } catch (e: Exception) {
+            _uiState.update { it.copy(state = CameraState.Error("Fehler beim Erstellen (${e.message})")) }
+        } finally {
+            filteredBitmaps.forEach { if (!it.isRecycled) it.recycle() }
+            capturedBitmaps.filter { !it.isRecycled }.forEach { it.recycle() }
+            capturedBitmaps.clear()
         }
-        val strip = withContext(Dispatchers.Default) {
-            StripComposer.compose(
-                filteredBitmaps,
-                layout,
-                eventName = settings.eventName,
-                backgroundColor = settings.stripBackground.colorArgb,
-                logoBitmap = logoBitmap
-            )
-        }
-        logoBitmap?.recycle()
-        val stripPath = withContext(Dispatchers.IO) {
-            BitmapUtils.saveBitmap(context, strip, "strip_$sessionId")
-        }
-        strip.recycle()
-        filteredBitmaps.forEach { it.recycle() }
-        capturedBitmaps.filter { !it.isRecycled }.forEach { it.recycle() }
-        capturedBitmaps.clear()
-        repository.updateStripPath(sessionId, stripPath)
-
-        _uiState.update { it.copy(state = CameraState.Done(sessionId)) }
     }
 
     fun resetToIdle() {
