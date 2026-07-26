@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -37,6 +38,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,6 +47,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +59,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import kotlinx.coroutines.launch
 import com.fotobox.app.data.models.PhotoSession
 import com.fotobox.app.ui.viewmodels.GalleryViewModel
 import com.fotobox.app.utils.ShareUtils
@@ -70,9 +75,13 @@ fun GalleryScreen(
 ) {
     val sessions by viewModel.sessions.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     var deleteTarget by remember { mutableStateOf<PhotoSession?>(null) }
     var fullscreenSession by remember { mutableStateOf<PhotoSession?>(null) }
+    var exporting by remember { mutableStateOf(false) }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -91,8 +100,33 @@ fun GalleryScreen(
                     color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.Bold
                 ),
-                modifier = Modifier.padding(start = 8.dp)
+                modifier = Modifier
+                    .padding(start = 8.dp)
+                    .weight(1f)
             )
+            if (sessions.isNotEmpty()) {
+                IconButton(
+                    onClick = {
+                        if (!exporting) {
+                            exporting = true
+                            scope.launch {
+                                val count = viewModel.exportAll(context)
+                                exporting = false
+                                snackbarHostState.showSnackbar(
+                                    if (count > 0) "$count Fotos in Galerie gespeichert" else "Export fehlgeschlagen"
+                                )
+                            }
+                        }
+                    }
+                ) {
+                    Icon(
+                        Icons.Default.Download,
+                        "In Galerie exportieren",
+                        tint = if (exporting) MaterialTheme.colorScheme.onBackground.copy(0.4f)
+                               else MaterialTheme.colorScheme.onBackground
+                    )
+                }
+            }
         }
 
         if (sessions.isEmpty()) {
@@ -152,6 +186,11 @@ fun GalleryScreen(
         )
     }
 
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp)
+    )
+
     // Fullscreen viewer
     AnimatedVisibility(
         visible = fullscreenSession != null,
@@ -176,6 +215,7 @@ fun GalleryScreen(
             )
         }
     }
+    } // end outer Box
 }
 
 @Composable
@@ -261,8 +301,9 @@ private fun GalleryItem(
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(0.6f),
-                contentScale = ContentScale.Crop
+                    .aspectRatio(0.6f)
+                    .background(MaterialTheme.colorScheme.surface),
+                contentScale = ContentScale.Fit
             )
             Row(
                 modifier = Modifier

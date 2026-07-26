@@ -1,10 +1,13 @@
 package com.fotobox.app.utils
 
+import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
@@ -54,6 +57,31 @@ object BitmapUtils {
 
     fun getUri(context: Context, filePath: String): Uri =
         FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", File(filePath))
+
+    fun exportToGallery(context: Context, sourcePath: String, displayName: String): Boolean {
+        return try {
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Fotobox")
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+            }
+            val uri = context.contentResolver.insert(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values
+            ) ?: return false
+            context.contentResolver.openOutputStream(uri)?.use { out ->
+                File(sourcePath).inputStream().use { it.copyTo(out) }
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                values.clear()
+                values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                context.contentResolver.update(uri, values, null, null)
+            }
+            true
+        } catch (_: Exception) { false }
+    }
 
     fun rotateBitmap(bitmap: Bitmap, degrees: Float): Bitmap {
         if (degrees == 0f) return bitmap
