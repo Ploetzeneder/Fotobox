@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
 import androidx.core.content.FileProvider
+import androidx.exifinterface.media.ExifInterface
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -25,6 +26,20 @@ object BitmapUtils {
     }
 
     fun loadBitmap(path: String): Bitmap? = BitmapFactory.decodeFile(path)
+
+    fun loadBitmapExifCorrected(path: String): Bitmap? {
+        val raw = BitmapFactory.decodeFile(path) ?: return null
+        val degrees = try {
+            val exif = ExifInterface(path)
+            when (exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                else -> 0f
+            }
+        } catch (_: Exception) { 0f }
+        return rotateBitmap(raw, degrees)
+    }
 
     fun loadBitmapSampled(path: String, maxWidth: Int, maxHeight: Int): Bitmap? {
         val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }

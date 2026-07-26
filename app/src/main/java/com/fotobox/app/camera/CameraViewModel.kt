@@ -2,7 +2,6 @@ package com.fotobox.app.camera
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import androidx.camera.core.CameraInfo
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
@@ -181,7 +180,7 @@ class CameraViewModel @Inject constructor(
         }
         if (!saved) return
         val bitmap = withContext(Dispatchers.IO) {
-            BitmapFactory.decodeFile(tempFile.absolutePath)
+            BitmapUtils.loadBitmapExifCorrected(tempFile.absolutePath)
         }
         bitmap?.let { capturedBitmaps.add(it) }
     }
