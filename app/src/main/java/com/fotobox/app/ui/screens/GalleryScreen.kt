@@ -1,6 +1,8 @@
 package com.fotobox.app.ui.screens
 
+import android.Manifest
 import android.content.Context
+import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -59,6 +61,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import kotlinx.coroutines.launch
 import com.fotobox.app.data.models.PhotoSession
 import com.fotobox.app.ui.viewmodels.GalleryViewModel
@@ -68,6 +73,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun GalleryScreen(
     onBack: () -> Unit,
@@ -80,6 +86,19 @@ fun GalleryScreen(
     var deleteTarget by remember { mutableStateOf<PhotoSession?>(null) }
     var fullscreenSession by remember { mutableStateOf<PhotoSession?>(null) }
     var exporting by remember { mutableStateOf(false) }
+
+    val writePermission = rememberPermissionState(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+
+    fun doExport() {
+        exporting = true
+        scope.launch {
+            val count = viewModel.exportAll(context)
+            exporting = false
+            snackbarHostState.showSnackbar(
+                if (count > 0) "$count Fotos in Galerie gespeichert" else "Export fehlgeschlagen"
+            )
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
     Column(
@@ -108,13 +127,12 @@ fun GalleryScreen(
                 IconButton(
                     onClick = {
                         if (!exporting) {
-                            exporting = true
-                            scope.launch {
-                                val count = viewModel.exportAll(context)
-                                exporting = false
-                                snackbarHostState.showSnackbar(
-                                    if (count > 0) "$count Fotos in Galerie gespeichert" else "Export fehlgeschlagen"
-                                )
+                            val needsPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+                                    && !writePermission.status.isGranted
+                            if (needsPermission) {
+                                writePermission.launchPermissionRequest()
+                            } else {
+                                doExport()
                             }
                         }
                     }
