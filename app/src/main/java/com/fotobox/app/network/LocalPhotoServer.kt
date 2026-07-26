@@ -21,8 +21,8 @@ class LocalPhotoServer(
     private val context: Context,
     private val port: Int = 8888
 ) {
-    private var serverSocket: ServerSocket? = null
-    private var running = false
+    @Volatile private var serverSocket: ServerSocket? = null
+    @Volatile private var running = false
     private val photosDir get() = File(context.filesDir, "photos")
 
     fun start() {

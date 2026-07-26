@@ -42,6 +42,7 @@ class FotoboxRepository @Inject constructor(
             try { java.io.File(it.filePath).delete() } catch (_: Exception) {}
         }
         session.stripFilePath?.let { try { java.io.File(it).delete() } catch (_: Exception) {} }
+        photoDao.deleteForSession(session.id)
         sessionDao.delete(session)
     }
 

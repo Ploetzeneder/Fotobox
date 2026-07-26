@@ -59,6 +59,7 @@ class SettingsViewModel @Inject constructor(
             val bitmap = DalleClient(key).generateBackground(_settings.value.eventName)
             if (bitmap != null) {
                 DalleClient.saveBitmap(context, bitmap)
+                bitmap.recycle()
                 _aiError.value = null
             } else {
                 _aiError.value = "Generierung fehlgeschlagen. API-Key prüfen."
