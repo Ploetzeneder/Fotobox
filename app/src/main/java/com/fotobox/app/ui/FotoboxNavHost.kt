@@ -8,6 +8,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.fotobox.app.ui.screens.AudioGuestbookScreen
 import com.fotobox.app.ui.screens.CameraScreen
+import com.fotobox.app.ui.screens.ConnectScreen
 import com.fotobox.app.ui.screens.GalleryScreen
 import com.fotobox.app.ui.screens.HomeScreen
 import com.fotobox.app.ui.screens.PhotoReviewScreen
@@ -24,6 +25,7 @@ sealed class Screen(val route: String) {
     data object Settings : Screen("settings")
     data object SlideShow : Screen("slideshow")
     data object AudioGuestbook : Screen("audio_guestbook")
+    data object Connect : Screen("connect")
 }
 
 @Composable
@@ -77,7 +79,10 @@ fun FotoboxNavHost() {
         }
 
         composable(Screen.Settings.route) {
-            SettingsScreen(onBack = { navController.popBackStack() })
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenConnect = { navController.navigate(Screen.Connect.route) }
+            )
         }
 
         composable(Screen.SlideShow.route) {
@@ -86,6 +91,10 @@ fun FotoboxNavHost() {
 
         composable(Screen.AudioGuestbook.route) {
             AudioGuestbookScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Screen.Connect.route) {
+            ConnectScreen(onBack = { navController.popBackStack() })
         }
     }
 }

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -18,9 +19,18 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -30,8 +40,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fotobox.app.data.models.CountdownDuration
@@ -42,20 +54,21 @@ import com.fotobox.app.ui.viewmodels.SettingsViewModel
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onOpenConnect: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val settings by viewModel.settings.collectAsState()
+    val aiGenerating by viewModel.aiGenerating.collectAsState()
+    val aiError by viewModel.aiError.collectAsState()
+    val isCloudConnected = settings.cloudToken.isNotEmpty()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Header
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
@@ -77,7 +90,56 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Event name
+            // Fotobienchen Cloud
+            SettingsSection("Fotobienchen Cloud") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            if (isCloudConnected) Color(0xFF1B5E20).copy(0.3f)
+                            else Color.White.copy(0.05f)
+                        )
+                        .clickable { onOpenConnect() }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        if (isCloudConnected) Icons.Default.CheckCircle else Icons.Default.CloudOff,
+                        null,
+                        tint = if (isCloudConnected) Color(0xFF4CAF50) else Color.White.copy(0.4f),
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                        Text(
+                            if (isCloudConnected) "Verbunden" else "Nicht verbunden",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                color = if (isCloudConnected) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                        Text(
+                            if (isCloudConnected) settings.cloudCustomerName
+                            else "Tippen zum Verbinden",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f)
+                            )
+                        )
+                    }
+                    Icon(Icons.Default.ArrowForward, null, tint = Color.White.copy(0.3f))
+                }
+                if (isCloudConnected) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    SettingsToggle(
+                        label = "Auto-Upload",
+                        description = "Fotos & Audio automatisch hochladen",
+                        checked = settings.autoUploadCloud,
+                        onToggle = { viewModel.updateAutoUpload(it) }
+                    )
+                }
+            }
+
+            // Veranstaltung
             SettingsSection("Veranstaltung") {
                 OutlinedTextField(
                     value = settings.eventName,
@@ -99,16 +161,16 @@ fun SettingsScreen(
                 )
             }
 
-            // Strip layout
+            // Strip Layout
             SettingsSection("Foto-Layout") {
                 SegmentedPicker(
-                    options = StripLayout.entries.map { it.label },
+                    options = StripLayout.entries.map { "${it.icon} ${it.label}" },
                     selectedIndex = StripLayout.entries.indexOf(settings.stripLayout),
                     onSelect = { viewModel.updateLayout(StripLayout.entries[it]) }
                 )
             }
 
-            // Default filter
+            // Filter
             SettingsSection("Standard-Filter") {
                 SegmentedPicker(
                     options = PhotoFilter.entries.map { it.label },
@@ -117,7 +179,7 @@ fun SettingsScreen(
                 )
             }
 
-            // Flash
+            // Kamera
             SettingsSection("Kamera-Optionen") {
                 SettingsToggle(
                     label = "Blitz-Effekt",
@@ -131,6 +193,52 @@ fun SettingsScreen(
                     description = "Vollbild ohne Statusleiste",
                     checked = settings.kioskMode,
                     onToggle = { viewModel.updateKiosk(it) }
+                )
+            }
+
+            // KI-Hintergrund
+            SettingsSection("KI-Hintergrund (DALL-E 3)") {
+                OutlinedTextField(
+                    value = settings.aiApiKey,
+                    onValueChange = { viewModel.updateAiApiKey(it) },
+                    label = { Text("OpenAI API-Key") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    placeholder = { Text("sk-...") }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { viewModel.generateAiBackground() },
+                        enabled = !aiGenerating && settings.aiApiKey.isNotBlank(),
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary
+                        )
+                    ) {
+                        if (aiGenerating) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp))
+                        } else {
+                            Icon(Icons.Default.AutoAwesome, null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.size(6.dp))
+                            Text("Hintergrund generieren")
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = { viewModel.clearAiBackground() },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Zurücksetzen")
+                    }
+                }
+                aiError?.let { err ->
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(err, style = MaterialTheme.typography.bodyLarge.copy(color = Color(0xFFEF5350)))
+                }
+                Text(
+                    "Generiert ein Event-spezifisches Hintergrundbild für den Startbildschirm. ~0,04€ pro Bild.",
+                    style = MaterialTheme.typography.labelLarge.copy(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f))
                 )
             }
         }
@@ -181,10 +289,7 @@ private fun SegmentedPicker(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(
-                        if (isSelected) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.surface
-                    )
+                    .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface)
                     .clickable { onSelect(i) }
                     .padding(vertical = 10.dp, horizontal = 4.dp),
                 contentAlignment = Alignment.Center
@@ -192,8 +297,7 @@ private fun SegmentedPicker(
                 Text(
                     label,
                     style = MaterialTheme.typography.labelLarge.copy(
-                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary
-                        else MaterialTheme.colorScheme.onSurface
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                     ),
                     maxLines = 1
                 )
@@ -217,15 +321,11 @@ private fun SettingsToggle(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 label,
-                style = MaterialTheme.typography.titleLarge.copy(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                style = MaterialTheme.typography.titleLarge.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
             )
             Text(
                 description,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f)
-                )
+                style = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f))
             )
         }
         Switch(checked = checked, onCheckedChange = onToggle)

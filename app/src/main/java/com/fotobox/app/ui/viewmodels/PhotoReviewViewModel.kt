@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fotobox.app.data.models.Photo
 import com.fotobox.app.data.repository.FotoboxRepository
+import com.fotobox.app.network.CloudSyncManager
 import com.fotobox.app.network.LocalPhotoServer
 import com.fotobox.app.utils.QrUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,7 +29,8 @@ data class PhotoReviewUiState(
 @HiltViewModel
 class PhotoReviewViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val repository: FotoboxRepository
+    private val repository: FotoboxRepository,
+    private val cloudSync: CloudSyncManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PhotoReviewUiState())
@@ -47,6 +49,9 @@ class PhotoReviewViewModel @Inject constructor(
                 stripPath = session?.stripFilePath,
                 isLoading = false
             )
+            if (repository.loadSettings().autoUploadCloud) {
+                cloudSync.syncSessionAsync(sessionId)
+            }
         }
     }
 

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fotobox.app.data.models.AudioRecording
 import com.fotobox.app.data.repository.FotoboxRepository
+import com.fotobox.app.network.CloudSyncManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -14,7 +15,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AudioGuestbookViewModel @Inject constructor(
-    private val repository: FotoboxRepository
+    private val repository: FotoboxRepository,
+    private val cloudSync: CloudSyncManager
 ) : ViewModel() {
 
     val recordings: StateFlow<List<AudioRecording>> = repository.getAllAudioRecordings()
@@ -24,12 +26,9 @@ class AudioGuestbookViewModel @Inject constructor(
 
     fun saveRecording(file: File, durationMs: Long) {
         viewModelScope.launch {
-            repository.saveAudioRecording(
-                AudioRecording(
-                    filePath = file.absolutePath,
-                    durationMs = durationMs
-                )
-            )
+            val recording = AudioRecording(filePath = file.absolutePath, durationMs = durationMs)
+            repository.saveAudioRecording(recording)
+            cloudSync.syncAudioAsync(recording)
         }
     }
 

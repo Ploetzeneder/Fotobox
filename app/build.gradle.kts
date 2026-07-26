@@ -82,5 +82,6 @@ dependencies {
     implementation(libs.accompanist.permissions)
     implementation(libs.androidx.exifinterface)
     implementation(libs.zxing.core)
+    implementation(libs.okhttp)
     debugImplementation(libs.androidx.ui.tooling)
 }

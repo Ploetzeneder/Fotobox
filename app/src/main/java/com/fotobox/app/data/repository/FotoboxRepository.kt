@@ -79,7 +79,12 @@ class FotoboxRepository @Inject constructor(
         autoPrint = prefs.getBoolean("auto_print", false),
         printCopies = prefs.getInt("print_copies", 1),
         localServerPort = prefs.getInt("server_port", 8888),
-        aiApiKey = prefs.getString("ai_api_key", "") ?: ""
+        aiApiKey = prefs.getString("ai_api_key", "") ?: "",
+        cloudApiUrl = prefs.getString("cloud_api_url", "https://fotobienchen.de/api") ?: "https://fotobienchen.de/api",
+        cloudToken = prefs.getString("cloud_token", "") ?: "",
+        cloudBoxId = prefs.getString("cloud_box_id", "") ?: "",
+        cloudCustomerName = prefs.getString("cloud_customer_name", "") ?: "",
+        autoUploadCloud = prefs.getBoolean("auto_upload_cloud", true),
     )
 
     fun saveSettings(settings: FotoboxSettings) {
@@ -95,6 +100,11 @@ class FotoboxRepository @Inject constructor(
             putInt("print_copies", settings.printCopies)
             putInt("server_port", settings.localServerPort)
             putString("ai_api_key", settings.aiApiKey)
+            putString("cloud_api_url", settings.cloudApiUrl)
+            putString("cloud_token", settings.cloudToken)
+            putString("cloud_box_id", settings.cloudBoxId)
+            putString("cloud_customer_name", settings.cloudCustomerName)
+            putBoolean("auto_upload_cloud", settings.autoUploadCloud)
             apply()
         }
     }

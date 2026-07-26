@@ -96,5 +96,11 @@ data class FotoboxSettings(
     val autoPrint: Boolean = false,
     val printCopies: Int = 1,
     val localServerPort: Int = 8888,
-    val aiApiKey: String = "",   // OpenAI API Key für KI-Hintergrundgenerierung
+    val aiApiKey: String = "",
+    // Fotobienchen Cloud
+    val cloudApiUrl: String = "https://fotobienchen.de/api",
+    val cloudToken: String = "",
+    val cloudBoxId: String = "",
+    val cloudCustomerName: String = "",
+    val autoUploadCloud: Boolean = true,
 )
