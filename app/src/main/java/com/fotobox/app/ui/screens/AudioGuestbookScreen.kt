@@ -115,6 +115,10 @@ fun AudioGuestbookScreen(
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
 
+    // List playback state (separate from preview player)
+    var listPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var playingRecordingId by remember { mutableStateOf<Long?>(null) }
+
     // Greeting state
     var isGreetingPlaying by remember { mutableStateOf(false) }
     var isRecordingGreeting by remember { mutableStateOf(false) }
@@ -129,6 +133,7 @@ fun AudioGuestbookScreen(
             player?.apply { try { stop() } catch (_: Exception) {}; release() }
             greetingRecorder?.apply { try { stop() } catch (_: Exception) {}; release() }
             greetingPlayer?.apply { try { stop() } catch (_: Exception) {}; release() }
+            listPlayer?.apply { try { stop() } catch (_: Exception) {}; release() }
         }
     }
 
@@ -281,7 +286,7 @@ fun AudioGuestbookScreen(
                             recorder = null
                             isRecording = false
                             recordingSeconds = 0
-                            isPreviewing = true
+                            // isPreviewing stays false — user taps Play explicitly to listen
                         } else if (previewFile == null) {
                             val file = viewModel.newAudioFile()
                             previewFile = file
@@ -300,7 +305,7 @@ fun AudioGuestbookScreen(
                                     recorder = null
                                     isRecording = false
                                     recordingSeconds = 0
-                                    isPreviewing = true
+                                    // isPreviewing stays false: user taps Play explicitly to listen
                                 }
                             }
                         }
@@ -352,15 +357,31 @@ fun AudioGuestbookScreen(
                     items(recordings) { rec ->
                         AudioRecordingItem(
                             recording = rec,
-                            onPlay = {
-                                player?.apply { try { stop() } catch (_: Exception) {}; release() }
-                                player = MediaPlayer().apply {
-                                    setDataSource(rec.filePath)
-                                    prepare()
-                                    start()
+                            isPlaying = playingRecordingId == rec.id,
+                            onTogglePlay = {
+                                if (playingRecordingId == rec.id) {
+                                    listPlayer?.apply { try { stop() } catch (_: Exception) {}; release() }
+                                    listPlayer = null
+                                    playingRecordingId = null
+                                } else {
+                                    listPlayer?.apply { try { stop() } catch (_: Exception) {}; release() }
+                                    playingRecordingId = rec.id
+                                    listPlayer = MediaPlayer().apply {
+                                        setDataSource(rec.filePath)
+                                        prepare()
+                                        start()
+                                        setOnCompletionListener { playingRecordingId = null }
+                                    }
                                 }
                             },
-                            onDelete = { viewModel.deleteRecording(rec) }
+                            onDelete = {
+                                if (playingRecordingId == rec.id) {
+                                    listPlayer?.apply { try { stop() } catch (_: Exception) {}; release() }
+                                    listPlayer = null
+                                    playingRecordingId = null
+                                }
+                                viewModel.deleteRecording(rec)
+                            }
                         )
                     }
                 }
@@ -659,28 +680,33 @@ private fun GuestRecordingSection(
 @Composable
 private fun AudioRecordingItem(
     recording: AudioRecording,
-    onPlay: () -> Unit,
+    isPlaying: Boolean,
+    onTogglePlay: () -> Unit,
     onDelete: () -> Unit
 ) {
     val durationSec = recording.durationMs / 1000
     val date = SimpleDateFormat("dd.MM.yy · HH:mm", Locale.getDefault())
         .format(Date(recording.createdAt))
+    val playBg = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(0.2f)
+    val playTint = if (isPlaying) Color.White else MaterialTheme.colorScheme.primary
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(Color.White.copy(0.07f))
+            .background(if (isPlaying) Color.White.copy(0.12f) else Color.White.copy(0.07f))
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(
-            onClick = onPlay,
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.primary.copy(0.2f), CircleShape)
-                .size(44.dp)
+            onClick = onTogglePlay,
+            modifier = Modifier.background(playBg, CircleShape).size(44.dp)
         ) {
-            Icon(Icons.Default.PlayArrow, "Abspielen", tint = MaterialTheme.colorScheme.primary)
+            Icon(
+                if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
+                if (isPlaying) "Stoppen" else "Abspielen",
+                tint = playTint
+            )
         }
         Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
             Text(
@@ -688,8 +714,16 @@ private fun AudioRecordingItem(
                 style = MaterialTheme.typography.titleLarge.copy(color = Color.White)
             )
             Text(
-                "$date · ${durationSec}s",
-                style = MaterialTheme.typography.labelLarge.copy(color = Color.White.copy(0.5f))
+                buildString {
+                    append(date)
+                    append(" · ")
+                    append(durationSec)
+                    append("s")
+                    if (isPlaying) append(" ▶")
+                },
+                style = MaterialTheme.typography.labelLarge.copy(
+                    color = if (isPlaying) MaterialTheme.colorScheme.primary else Color.White.copy(0.5f)
+                )
             )
         }
         IconButton(onClick = onDelete) {

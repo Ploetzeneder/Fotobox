@@ -1,8 +1,12 @@
 package com.fotobox.app.network
 
 import android.content.Context
-import android.net.wifi.WifiManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.Build
 import java.io.File
+import java.net.Inet4Address
+import java.net.NetworkInterface
 import java.net.ServerSocket
 import kotlin.concurrent.thread
 
@@ -47,11 +51,27 @@ class LocalPhotoServer(
     }
 
     fun getDeviceIp(): String? {
-        val wm = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        val ip = wm.connectionInfo.ipAddress
-        if (ip == 0) return null
-        return "%d.%d.%d.%d".format(ip and 0xff, (ip shr 8) and 0xff, (ip shr 16) and 0xff, (ip shr 24) and 0xff)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val network = cm.activeNetwork ?: return fallbackIp()
+            val caps = cm.getNetworkCapabilities(network) ?: return fallbackIp()
+            if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return fallbackIp()
+            return cm.getLinkProperties(network)
+                ?.linkAddresses
+                ?.map { it.address }
+                ?.filterIsInstance<Inet4Address>()
+                ?.firstOrNull { !it.isLoopbackAddress }
+                ?.hostAddress ?: fallbackIp()
+        }
+        return fallbackIp()
     }
+
+    private fun fallbackIp(): String? =
+        NetworkInterface.getNetworkInterfaces()?.asSequence()
+            ?.flatMap { it.inetAddresses.asSequence() }
+            ?.filterIsInstance<Inet4Address>()
+            ?.firstOrNull { !it.isLoopbackAddress }
+            ?.hostAddress
 
     fun photoUrl(fileName: String): String? {
         val ip = getDeviceIp() ?: return null

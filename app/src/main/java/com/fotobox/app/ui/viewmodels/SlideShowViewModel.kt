@@ -8,7 +8,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -36,19 +37,32 @@ class SlideShowViewModel @Inject constructor(
     private var running = false
 
     fun start() {
-        viewModelScope.launch {
-            val settings = repository.loadSettings()
-            _eventName.value = settings.eventName
-            val sessions = repository.getAllSessions().first()
-            imagePaths = sessions.mapNotNull { it.stripFilePath }
-            _hasImages.value = imagePaths.isNotEmpty()
-            _photoCount.value = imagePaths.size
-            if (imagePaths.isNotEmpty()) {
-                _currentImagePath.value = imagePaths[0]
-                running = true
-                autoAdvance()
+        val settings = repository.loadSettings()
+        _eventName.value = settings.eventName
+
+        // Live updates: when new sessions arrive the slideshow picks them up
+        repository.getAllSessions()
+            .onEach { sessions ->
+                val paths = sessions.mapNotNull { it.stripFilePath }
+                val wasEmpty = imagePaths.isEmpty()
+                imagePaths = paths
+                _hasImages.value = paths.isNotEmpty()
+                _photoCount.value = paths.size
+                if (wasEmpty && paths.isNotEmpty()) {
+                    _currentIndex.value = 0
+                    _currentImagePath.value = paths[0]
+                    if (!running) {
+                        running = true
+                        viewModelScope.launch { autoAdvance() }
+                    }
+                }
+                // Clamp index if photos were deleted
+                if (_currentIndex.value >= paths.size && paths.isNotEmpty()) {
+                    _currentIndex.value = 0
+                    _currentImagePath.value = paths[0]
+                }
             }
-        }
+            .launchIn(viewModelScope)
     }
 
     fun next() {
