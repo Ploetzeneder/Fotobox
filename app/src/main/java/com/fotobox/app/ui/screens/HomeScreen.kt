@@ -101,8 +101,8 @@ fun HomeScreen(
         while (true) {
             delay(5_000L)
             if (System.currentTimeMillis() - lastTouchMs[0] >= idleSlideshowDelay * 1000L) {
+                lastTouchMs[0] = System.currentTimeMillis()
                 onStartSlideShow()
-                break
             }
         }
     }

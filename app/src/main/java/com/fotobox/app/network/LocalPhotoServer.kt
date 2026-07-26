@@ -55,7 +55,10 @@ class LocalPhotoServer(
             val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
             val network = cm.activeNetwork ?: return fallbackIp()
             val caps = cm.getNetworkCapabilities(network) ?: return fallbackIp()
-            if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return fallbackIp()
+            // Only use WiFi or Ethernet — cellular IPs are not reachable by guests on the local network
+            val isLocal = caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+                || caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+            if (!isLocal) return null
             return cm.getLinkProperties(network)
                 ?.linkAddresses
                 ?.map { it.address }
