@@ -11,12 +11,14 @@ import com.fotobox.app.data.repository.FotoboxRepository
 import com.fotobox.app.network.CloudSyncManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
@@ -67,13 +69,17 @@ class AudioGuestbookViewModel @Inject constructor(
     fun greetingFile(): File = repository.greetingFile()
 
     fun saveGreeting(file: File) {
-        file.copyTo(repository.greetingFile(), overwrite = true)
-        _hasGreeting.value = true
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { file.copyTo(repository.greetingFile(), overwrite = true) }
+            _hasGreeting.value = true
+        }
     }
 
     fun deleteGreeting() {
-        repository.greetingFile().delete()
-        _hasGreeting.value = false
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { repository.greetingFile().delete() }
+            _hasGreeting.value = false
+        }
     }
 
     fun saveRecording(file: File, durationMs: Long) {
