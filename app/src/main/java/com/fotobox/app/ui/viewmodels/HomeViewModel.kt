@@ -21,6 +21,10 @@ class HomeViewModel @Inject constructor(
         .map { it.size }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    val audioCount: StateFlow<Int> = repository.getAllAudioRecordings()
+        .map { it.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     private val _eventName = MutableStateFlow("")
     val eventName: StateFlow<String> = _eventName.asStateFlow()
 

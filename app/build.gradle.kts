@@ -81,5 +81,6 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.accompanist.permissions)
     implementation(libs.androidx.exifinterface)
+    implementation(libs.zxing.core)
     debugImplementation(libs.androidx.ui.tooling)
 }

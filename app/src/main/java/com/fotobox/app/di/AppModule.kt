@@ -3,6 +3,7 @@ package com.fotobox.app.di
 import android.content.Context
 import androidx.room.Room
 import com.fotobox.app.data.db.FotoboxDatabase
+import com.fotobox.app.data.db.AudioRecordingDao
 import com.fotobox.app.data.db.PhotoDao
 import com.fotobox.app.data.db.PhotoSessionDao
 import dagger.Module
@@ -28,4 +29,7 @@ object AppModule {
 
     @Provides
     fun providePhotoDao(db: FotoboxDatabase): PhotoDao = db.photoDao()
+
+    @Provides
+    fun provideAudioRecordingDao(db: FotoboxDatabase): AudioRecordingDao = db.audioRecordingDao()
 }
