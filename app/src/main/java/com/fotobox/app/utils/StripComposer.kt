@@ -40,30 +40,56 @@ object StripComposer {
         return when (layout) {
             StripLayout.SINGLE -> {
                 val p = normalizeWidth(photos[0])
-                withFooter(p, eventName, addTimestamp, backgroundColor)
+                withFooter(p, eventName, addTimestamp, backgroundColor).also { p.recycle() }
             }
-            StripLayout.STRIP_2 ->
-                composeColumn(photos.take(2).map { normalizeWidth(it) }, eventName, addTimestamp, backgroundColor)
-            StripLayout.STRIP_3 ->
-                composeColumn(photos.take(3).map { normalizeWidth(it) }, eventName, addTimestamp, backgroundColor)
-            StripLayout.STRIP_4 ->
-                composeColumn(photos.take(4).map { normalizeWidth(it) }, eventName, addTimestamp, backgroundColor)
-            StripLayout.GRID_4 ->
-                composeGrid(photos.take(4).map { normalizeWidth(it) }, 2, 2, eventName, addTimestamp, backgroundColor)
-            StripLayout.GRID_6 ->
-                composeGrid(photos.take(6).map { normalizeWidth(it) }, 2, 3, eventName, addTimestamp, backgroundColor)
-            StripLayout.GRID_9 ->
-                composeGrid(photos.take(9).map { normalizeSmall(it) }, 3, 3, eventName, addTimestamp, backgroundColor)
-            StripLayout.ROW_2 ->
-                composeRow(photos.take(2).map { normalizeHeight(it) }, eventName, addTimestamp, backgroundColor)
-            StripLayout.ROW_3 ->
-                composeRow(photos.take(3).map { normalizeHeight(it) }, eventName, addTimestamp, backgroundColor)
-            StripLayout.ROW_4 ->
-                composeRow(photos.take(4).map { normalizeHeight(it) }, eventName, addTimestamp, backgroundColor)
+            StripLayout.STRIP_2 -> composeWithNormalized(
+                photos.take(2), ::normalizeWidth, eventName, addTimestamp, backgroundColor
+            ) { n -> composeColumn(n, eventName, addTimestamp, backgroundColor) }
+            StripLayout.STRIP_3 -> composeWithNormalized(
+                photos.take(3), ::normalizeWidth, eventName, addTimestamp, backgroundColor
+            ) { n -> composeColumn(n, eventName, addTimestamp, backgroundColor) }
+            StripLayout.STRIP_4 -> composeWithNormalized(
+                photos.take(4), ::normalizeWidth, eventName, addTimestamp, backgroundColor
+            ) { n -> composeColumn(n, eventName, addTimestamp, backgroundColor) }
+            StripLayout.GRID_4 -> composeWithNormalized(
+                photos.take(4), ::normalizeWidth, eventName, addTimestamp, backgroundColor
+            ) { n -> composeGrid(n, 2, 2, eventName, addTimestamp, backgroundColor) }
+            StripLayout.GRID_6 -> composeWithNormalized(
+                photos.take(6), ::normalizeWidth, eventName, addTimestamp, backgroundColor
+            ) { n -> composeGrid(n, 2, 3, eventName, addTimestamp, backgroundColor) }
+            StripLayout.GRID_9 -> composeWithNormalized(
+                photos.take(9), ::normalizeSmall, eventName, addTimestamp, backgroundColor
+            ) { n -> composeGrid(n, 3, 3, eventName, addTimestamp, backgroundColor) }
+            StripLayout.ROW_2 -> composeWithNormalized(
+                photos.take(2), ::normalizeHeight, eventName, addTimestamp, backgroundColor
+            ) { n -> composeRow(n, eventName, addTimestamp, backgroundColor) }
+            StripLayout.ROW_3 -> composeWithNormalized(
+                photos.take(3), ::normalizeHeight, eventName, addTimestamp, backgroundColor
+            ) { n -> composeRow(n, eventName, addTimestamp, backgroundColor) }
+            StripLayout.ROW_4 -> composeWithNormalized(
+                photos.take(4), ::normalizeHeight, eventName, addTimestamp, backgroundColor
+            ) { n -> composeRow(n, eventName, addTimestamp, backgroundColor) }
             StripLayout.HERO_PLUS_2 ->
                 composeHero(photos.take(3), 2, eventName, addTimestamp, backgroundColor)
             StripLayout.HERO_PLUS_3 ->
                 composeHero(photos.take(4), 3, eventName, addTimestamp, backgroundColor)
+        }
+    }
+
+    private inline fun composeWithNormalized(
+        photos: List<Bitmap>,
+        normalize: (Bitmap) -> Bitmap,
+        eventName: String,
+        addTimestamp: Boolean,
+        backgroundColor: Int,
+        compose: (List<Bitmap>) -> Bitmap
+    ): Bitmap {
+        val normalized = photos.map { normalize(it) }
+        return try {
+            compose(normalized)
+        } finally {
+            // Only recycle bitmaps that were newly created (not the same object as the input)
+            normalized.zip(photos).forEach { (n, orig) -> if (n !== orig) n.recycle() }
         }
     }
 
@@ -173,27 +199,33 @@ object StripComposer {
             Bitmap.createScaledBitmap(bmp, sideTargetW, h, true)
         }
 
-        val footerH = footerHeight(eventName, addTimestamp)
-        val sidesH = sides.sumOf { it.height } + (sides.size - 1) * GAP
-        val contentH = maxOf(heroH, sidesH)
-        val totalW = BORDER * 2 + heroW + GAP + sideTargetW
-        val totalH = BORDER * 2 + contentH + footerH
+        try {
+            val footerH = footerHeight(eventName, addTimestamp)
+            val sidesH = sides.sumOf { it.height } + (sides.size - 1) * GAP
+            val contentH = maxOf(heroH, sidesH)
+            val totalW = BORDER * 2 + heroW + GAP + sideTargetW
+            val totalH = BORDER * 2 + contentH + footerH
 
-        val result = Bitmap.createBitmap(totalW, totalH, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(result)
-        canvas.drawColor(bg)
+            val result = Bitmap.createBitmap(totalW, totalH, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(result)
+            canvas.drawColor(bg)
 
-        canvas.drawBitmap(hero, BORDER.toFloat(), BORDER.toFloat(), null)
+            canvas.drawBitmap(hero, BORDER.toFloat(), BORDER.toFloat(), null)
 
-        var sideY = BORDER.toFloat()
-        val sideX = (BORDER + heroW + GAP).toFloat()
-        for (bmp in sides) {
-            canvas.drawBitmap(bmp, sideX, sideY, null)
-            sideY += bmp.height + GAP
+            var sideY = BORDER.toFloat()
+            val sideX = (BORDER + heroW + GAP).toFloat()
+            for (bmp in sides) {
+                canvas.drawBitmap(bmp, sideX, sideY, null)
+                sideY += bmp.height + GAP
+            }
+
+            if (footerH > 0) drawFooter(canvas, totalW, totalH, footerH, eventName, addTimestamp, bg)
+            return result
+        } finally {
+            if (hero !== photos[0]) hero.recycle()
+            val origSides = photos.drop(1).take(sideCount)
+            sides.zip(origSides).forEach { (s, orig) -> if (s !== orig) s.recycle() }
         }
-
-        if (footerH > 0) drawFooter(canvas, totalW, totalH, footerH, eventName, addTimestamp, bg)
-        return result
     }
 
     private fun withFooter(photo: Bitmap, eventName: String, addTimestamp: Boolean, bg: Int): Bitmap {
