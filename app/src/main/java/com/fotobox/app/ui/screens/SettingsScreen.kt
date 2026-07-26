@@ -324,6 +324,13 @@ fun SettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 SettingsToggle(
+                    label = "Live-Filter-Vorschau",
+                    description = "Gewählter Filter live im Kamerabild anzeigen",
+                    checked = settings.showLiveFilter,
+                    onToggle = { viewModel.updateShowLiveFilter(it) }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                SettingsToggle(
                     label = "Kiosk-Modus",
                     description = "Vollbild ohne Statusleiste",
                     checked = settings.kioskMode,

@@ -39,6 +39,7 @@ class SettingsViewModel @Inject constructor(
     fun updateLayout(l: StripLayout) = update { it.copy(stripLayout = l) }
     fun updateFilter(f: PhotoFilter) = update { it.copy(defaultFilter = f) }
     fun updateFlash(v: Boolean) = update { it.copy(useFlash = v) }
+    fun updateShowLiveFilter(v: Boolean) = update { it.copy(showLiveFilter = v) }
     fun updateKiosk(v: Boolean) = update { it.copy(kioskMode = v) }
     fun updateSettingsPin(pin: String) = update { it.copy(settingsPin = pin) }
     fun updateAutoPrint(v: Boolean) = update { it.copy(autoPrint = v) }
