@@ -1,18 +1,25 @@
 package com.fotobox.app.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -25,6 +32,8 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -50,16 +60,13 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import coil.compose.AsyncImage
 import com.fotobox.app.data.models.CountdownDuration
 import com.fotobox.app.data.models.PhotoFilter
 import com.fotobox.app.data.models.StripBackground
 import com.fotobox.app.data.models.StripLayout
 import com.fotobox.app.ui.viewmodels.SettingsViewModel
+import java.io.File
 
 @Composable
 fun SettingsScreen(
@@ -70,7 +77,12 @@ fun SettingsScreen(
     val settings by viewModel.settings.collectAsState()
     val aiGenerating by viewModel.aiGenerating.collectAsState()
     val aiError by viewModel.aiError.collectAsState()
+    val logoExists by viewModel.logoExists.collectAsState()
     val isCloudConnected = settings.cloudToken.isNotEmpty()
+
+    val logoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri -> uri?.let { viewModel.setLogo(it) } }
 
     Column(
         modifier = Modifier
@@ -226,6 +238,70 @@ fun SettingsScreen(
                             )
                         }
                     }
+                }
+            }
+
+            // Logo / Wasserzeichen
+            SettingsSection("Logo / Wasserzeichen") {
+                if (logoExists) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        AsyncImage(
+                            model = File(viewModel.logoFilePath),
+                            contentDescription = "Logo",
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.White.copy(0.08f)),
+                            contentScale = ContentScale.Fit
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Logo aktiv",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                            Text(
+                                "Wird auf jeden Fotostreifen gedruckt",
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
+                                )
+                            )
+                        }
+                        IconButton(onClick = { viewModel.clearLogo() }) {
+                            Icon(Icons.Default.Delete, "Logo entfernen", tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { logoPicker.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Image, null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.size(6.dp))
+                        Text("Anderes Logo wählen")
+                    }
+                } else {
+                    Button(
+                        onClick = { logoPicker.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Image, null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.size(6.dp))
+                        Text("Logo hochladen")
+                    }
+                    Text(
+                        "PNG mit transparentem Hintergrund empfohlen. Das Logo wird oben rechts auf jedem Streifen platziert.",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
+                        ),
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
                 }
             }
 

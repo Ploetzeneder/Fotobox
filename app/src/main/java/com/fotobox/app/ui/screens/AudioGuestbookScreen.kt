@@ -146,8 +146,8 @@ fun AudioGuestbookScreen(
                 val p = MediaPlayer().apply {
                     setDataSource(gFile.absolutePath)
                     prepare()
-                    start()
                     setOnCompletionListener { isGreetingPlaying = false }
+                    start()
                 }
                 greetingPlayer = p
                 isGreetingPlaying = true
@@ -221,8 +221,8 @@ fun AudioGuestbookScreen(
                                 val p = MediaPlayer().apply {
                                     setDataSource(gFile.absolutePath)
                                     prepare()
-                                    start()
                                     setOnCompletionListener { isGreetingPlaying = false }
+                                    start()
                                 }
                                 greetingPlayer = p
                                 isGreetingPlaying = true
@@ -320,8 +320,8 @@ fun AudioGuestbookScreen(
                             val p = MediaPlayer().apply {
                                 setDataSource(previewFile!!.absolutePath)
                                 prepare()
-                                start()
                                 setOnCompletionListener { isPreviewing = false }
+                                start()
                             }
                             player = p
                             isPreviewing = true
@@ -374,8 +374,8 @@ fun AudioGuestbookScreen(
                                     listPlayer = MediaPlayer().apply {
                                         setDataSource(rec.filePath)
                                         prepare()
-                                        start()
                                         setOnCompletionListener { playingRecordingId = null }
+                                        start()
                                     }
                                 }
                             },

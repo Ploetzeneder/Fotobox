@@ -1,6 +1,7 @@
 package com.fotobox.app.ui.viewmodels
 
 import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fotobox.app.data.models.CountdownDuration
@@ -12,11 +13,13 @@ import com.fotobox.app.data.repository.FotoboxRepository
 import com.fotobox.app.network.DalleClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -33,6 +36,10 @@ class SettingsViewModel @Inject constructor(
 
     private val _aiError = MutableStateFlow<String?>(null)
     val aiError: StateFlow<String?> = _aiError.asStateFlow()
+
+    private val _logoExists = MutableStateFlow(repository.logoFile().exists())
+    val logoExists: StateFlow<Boolean> = _logoExists.asStateFlow()
+    val logoFilePath: String get() = repository.logoFile().absolutePath
 
     fun updateEventName(name: String) = update { it.copy(eventName = name) }
     fun updateCountdown(d: CountdownDuration) = update { it.copy(countdownDuration = d) }
@@ -71,6 +78,24 @@ class SettingsViewModel @Inject constructor(
 
     fun clearAiBackground() {
         DalleClient.cacheFile(context).delete()
+    }
+
+    fun setLogo(uri: Uri) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        ?: return@withContext
+                    repository.logoFile().writeBytes(bytes)
+                    _logoExists.value = true
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    fun clearLogo() {
+        repository.logoFile().delete()
+        _logoExists.value = false
     }
 
     fun save() = repository.saveSettings(_settings.value)
