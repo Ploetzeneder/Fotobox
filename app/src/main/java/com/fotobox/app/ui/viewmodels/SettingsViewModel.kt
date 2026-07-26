@@ -49,6 +49,7 @@ class SettingsViewModel @Inject constructor(
     fun updateStripBackground(bg: StripBackground) = update { it.copy(stripBackground = bg) }
     fun updateAiApiKey(key: String) = update { it.copy(aiApiKey = key) }
     fun updateAutoUpload(v: Boolean) = update { it.copy(autoUploadCloud = v) }
+    fun updateLocalServerPort(port: Int) = update { it.copy(localServerPort = port.coerceIn(1024, 65535)) }
 
     fun generateAiBackground() {
         val key = _settings.value.aiApiKey

@@ -387,6 +387,40 @@ fun SettingsScreen(
                 }
             }
 
+            // Netzwerk
+            SettingsSection("Netzwerk") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "QR-Download Port",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        )
+                        Text(
+                            "Port für den lokalen Foto-Download (Standard: 8888)",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f)
+                            )
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    OutlinedTextField(
+                        value = settings.localServerPort.toString(),
+                        onValueChange = { v ->
+                            v.toIntOrNull()?.let { viewModel.updateLocalServerPort(it) }
+                        },
+                        modifier = Modifier.width(100.dp),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+            }
+
             // KI-Hintergrund
             SettingsSection("KI-Hintergrund (DALL-E 3)") {
                 OutlinedTextField(
