@@ -82,9 +82,13 @@ class AudioGuestbookViewModel @Inject constructor(
         }
     }
 
-    fun saveRecording(file: File, durationMs: Long) {
+    fun saveRecording(file: File, durationMs: Long, guestName: String = "") {
         viewModelScope.launch {
-            val recording = AudioRecording(filePath = file.absolutePath, durationMs = durationMs)
+            val recording = AudioRecording(
+                filePath = file.absolutePath,
+                durationMs = durationMs,
+                guestName = guestName.trim()
+            )
             repository.saveAudioRecording(recording)
             cloudSync.syncAudioAsync(recording)
         }

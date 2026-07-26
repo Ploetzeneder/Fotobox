@@ -114,6 +114,7 @@ fun AudioGuestbookScreen(
     var previewFile by remember { mutableStateOf<File?>(null) }
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
+    var guestName by remember { mutableStateOf("") }
 
     // List playback state (separate from preview player)
     var listPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
@@ -326,10 +327,13 @@ fun AudioGuestbookScreen(
                             isPreviewing = true
                         }
                     },
-                    onSave = {
-                        previewFile?.let { viewModel.saveRecording(it, recordingSeconds * 1000) }
+                    guestName = guestName,
+                    onGuestNameChange = { guestName = it },
+                    onSave = { name ->
+                        previewFile?.let { viewModel.saveRecording(it, recordingSeconds * 1000, name) }
                         previewFile = null
                         isPreviewing = false
+                        guestName = ""
                         player?.apply { try { stop() } catch (_: Exception) {}; release() }
                         player = null
                     },
@@ -337,6 +341,7 @@ fun AudioGuestbookScreen(
                         previewFile?.delete()
                         previewFile = null
                         isPreviewing = false
+                        guestName = ""
                         player?.apply { try { stop() } catch (_: Exception) {}; release() }
                         player = null
                     }
@@ -575,9 +580,11 @@ private fun GuestRecordingSection(
     maxSeconds: Long,
     micBg: Color,
     pulseScale: Float,
+    guestName: String,
+    onGuestNameChange: (String) -> Unit,
     onToggleMic: () -> Unit,
     onPreviewPlay: () -> Unit,
-    onSave: () -> Unit,
+    onSave: (String) -> Unit,
     onDiscard: () -> Unit
 ) {
     Column(
@@ -650,6 +657,23 @@ private fun GuestRecordingSection(
 
         if (previewFile != null && !isRecording) {
             Spacer(modifier = Modifier.height(20.dp))
+            androidx.compose.material3.OutlinedTextField(
+                value = guestName,
+                onValueChange = onGuestNameChange,
+                placeholder = {
+                    Text("Name (optional)", style = MaterialTheme.typography.bodyLarge.copy(color = Color.White.copy(0.35f)))
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = Color.White.copy(0.2f),
+                    cursorColor = MaterialTheme.colorScheme.primary
+                )
+            )
+            Spacer(modifier = Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 IconButton(
                     onClick = onPreviewPlay,
@@ -661,7 +685,7 @@ private fun GuestRecordingSection(
                     )
                 }
                 IconButton(
-                    onClick = onSave,
+                    onClick = { onSave(guestName) },
                     modifier = Modifier.background(MaterialTheme.colorScheme.primary, CircleShape).size(52.dp)
                 ) {
                     Icon(Icons.Default.Save, "Speichern", tint = Color.White)
