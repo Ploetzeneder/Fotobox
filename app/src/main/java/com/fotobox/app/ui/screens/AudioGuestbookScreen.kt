@@ -115,6 +115,7 @@ fun AudioGuestbookScreen(
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
     var guestName by remember { mutableStateOf("") }
+    var savedDurationSec by remember { mutableLongStateOf(0L) }
 
     // List playback state (separate from preview player)
     var listPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
@@ -286,6 +287,7 @@ fun AudioGuestbookScreen(
                             try { recorder?.apply { stop(); release() } } catch (_: Exception) {}
                             recorder = null
                             isRecording = false
+                            savedDurationSec = recordingSeconds
                             recordingSeconds = 0
                             // isPreviewing stays false — user taps Play explicitly to listen
                         } else if (previewFile == null) {
@@ -305,6 +307,7 @@ fun AudioGuestbookScreen(
                                     try { recorder?.apply { stop(); release() } } catch (_: Exception) {}
                                     recorder = null
                                     isRecording = false
+                                    savedDurationSec = recordingSeconds
                                     recordingSeconds = 0
                                     // isPreviewing stays false: user taps Play explicitly to listen
                                 }
@@ -330,8 +333,9 @@ fun AudioGuestbookScreen(
                     guestName = guestName,
                     onGuestNameChange = { guestName = it },
                     onSave = { name ->
-                        previewFile?.let { viewModel.saveRecording(it, recordingSeconds * 1000, name) }
+                        previewFile?.let { viewModel.saveRecording(it, savedDurationSec * 1000, name) }
                         previewFile = null
+                        savedDurationSec = 0
                         isPreviewing = false
                         guestName = ""
                         player?.apply { try { stop() } catch (_: Exception) {}; release() }
@@ -340,6 +344,7 @@ fun AudioGuestbookScreen(
                     onDiscard = {
                         previewFile?.delete()
                         previewFile = null
+                        savedDurationSec = 0
                         isPreviewing = false
                         guestName = ""
                         player?.apply { try { stop() } catch (_: Exception) {}; release() }
